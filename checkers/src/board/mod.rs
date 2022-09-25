@@ -1,7 +1,9 @@
 mod err; 
-use std::collections::HashSet;
+use std::collections::{HashSet,HashMap};
 use std::cell::RefCell;
 use std::rc::Rc;
+use colored::Colorize;
+
 
 #[derive(Debug, Copy, Clone, PartialEq,Eq)]
 enum BoardPiece {
@@ -42,7 +44,7 @@ impl BoardPiece {
 
 
 #[derive(Debug,Copy,Clone,PartialEq,Eq)]
-enum Player {
+pub enum Player {
     Black = 1,
     Red = -1
 }
@@ -94,7 +96,7 @@ impl std::fmt::Display for Moves {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 struct PlayerInfo {
     moves: Vec<Moves>, 
     can_jump: bool,
@@ -116,7 +118,29 @@ pub struct Board {
     board: [[BoardPiece;8];8],
     black_info: Rc<RefCell<PlayerInfo>>, 
     red_info:Rc<RefCell<PlayerInfo>>,
-    current_player: Rc<RefCell<PlayerInfo>>
+    current_player: Rc<RefCell<PlayerInfo>>,
+    game_over: bool
+}
+
+impl Clone for Board {
+
+    fn clone(&self) -> Self {
+
+        let red_info = Rc::new((*(self.red_info)).clone()); 
+        let black_info = Rc::new((*(self.black_info)).clone());
+        let current_player = match self.current_player.borrow().player {
+            Player::Red => red_info.clone(), 
+            Player::Black => black_info.clone()
+        };
+        Self {
+            board: self.board, 
+            red_info, 
+            black_info, 
+            current_player, 
+            game_over: self.game_over
+        }
+
+    }
 }
 
 impl std::fmt::Display for Board {
@@ -125,13 +149,13 @@ impl std::fmt::Display for Board {
         for row in self.board.iter() {
             let mut row_str = String::from("|"); 
             for el in row {
-                let c: &str = match el {
-                    BoardPiece::Red => "R" , 
-                    BoardPiece::KingRed => "RK", 
-                    BoardPiece::Black => "B", 
-                    BoardPiece::KingBlack => "BK", 
-                    BoardPiece::Empty => "_"
-                };
+                let c = match el {
+                    BoardPiece::Red => "O".red(), 
+                    BoardPiece::KingRed => "K".red(), 
+                    BoardPiece::Black => "O".blue(), 
+                    BoardPiece::KingBlack => "K".blue(), 
+                    BoardPiece::Empty => " ".underline()
+                }.underline();
                 row_str = format!("{}{}|",row_str,c);
             }
             printable = format!("{}\n{}",row_str,printable);
@@ -166,7 +190,8 @@ impl Board {
                 can_jump: false,
                 piece_locs: HashSet::with_capacity(12),
                 player: Player::Red
-            }))
+            })),
+            game_over: false
         }; 
 
         for (row,row_arr) in obj.board.iter().enumerate() {
@@ -297,6 +322,27 @@ impl Board {
         }
     }
 
+    pub fn is_game_over(&self) -> (bool, Option<bool>, Option<Player>) {
+
+        if !self.game_over {
+            return (false, None, None);
+        }
+
+        let mut b = self.clone();
+        b.current_player = match self.current_player.borrow().player {
+            Player::Red => b.black_info.clone(), 
+            Player::Black => b.red_info.clone()
+        };
+        b.calc_moves(); 
+        if b.current_player.borrow().moves.is_empty() {
+            return (true,Some(true),None);
+        }
+        let winner = b.current_player.borrow().player; 
+
+        (true,Some(false),Some(winner))
+        
+    }
+
     pub fn do_move(&mut self, mv: usize) -> bool{ 
 
         let mut player_info = self.current_player.borrow_mut(); 
@@ -333,11 +379,14 @@ impl Board {
         drop(other_player);
 
         match last_player {
-            Player::Red => self.current_player = self.red_info.clone(),
-            Player::Black => self.current_player = self.black_info.clone()
+            Player::Red => self.current_player = self.black_info.clone(),
+            Player::Black => self.current_player = self.red_info.clone()
         };
 
         self.calc_moves();
+        if self.current_player.borrow().moves.is_empty() {
+            self.game_over = true
+        }
         true
     }
 
