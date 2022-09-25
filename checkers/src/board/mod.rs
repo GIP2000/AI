@@ -1,5 +1,4 @@
 mod err; 
-// use err::MoveError;
 use std::collections::HashSet;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -99,7 +98,8 @@ impl std::fmt::Display for Moves {
 struct PlayerInfo {
     moves: Vec<Moves>, 
     can_jump: bool,
-    piece_locs:HashSet<(usize,usize)> 
+    piece_locs:HashSet<(usize,usize)>,
+    player: Player
 }
 impl std::fmt::Display for PlayerInfo {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> Result<(),std::fmt::Error> {
@@ -114,7 +114,6 @@ impl std::fmt::Display for PlayerInfo {
 #[derive(Debug)]
 pub struct Board {
     board: [[BoardPiece;8];8],
-    player_turn: Player, 
     black_info: Rc<RefCell<PlayerInfo>>, 
     red_info:Rc<RefCell<PlayerInfo>>,
     current_player: Rc<RefCell<PlayerInfo>>
@@ -132,7 +131,6 @@ impl std::fmt::Display for Board {
                     BoardPiece::Black => "B", 
                     BoardPiece::KingBlack => "BK", 
                     BoardPiece::Empty => "_"
-
                 };
                 row_str = format!("{}{}|",row_str,c);
             }
@@ -147,8 +145,8 @@ impl Board {
         let black_info_r = Rc::new(RefCell::new(PlayerInfo{
                 moves: Vec::new(),
                 can_jump: false,
-                piece_locs: HashSet::with_capacity(12)
-
+                piece_locs: HashSet::with_capacity(12),
+                player: Player::Black
             }));
         let mut obj = Self {
             board: [
@@ -161,13 +159,13 @@ impl Board {
                 [BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty],
                 [BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red],
             ],
-            player_turn: Player::Black, 
             current_player: black_info_r.clone(),
             black_info: black_info_r,
             red_info: Rc::new(RefCell::new(PlayerInfo {
                 moves: Vec::new(),
                 can_jump: false,
-                piece_locs: HashSet::with_capacity(12)
+                piece_locs: HashSet::with_capacity(12),
+                player: Player::Red
             }))
         }; 
 
@@ -185,78 +183,63 @@ impl Board {
         obj
     }
     pub fn print_moves(&self) {
-        println!("Player: {:?}\n{}",self.player_turn,self.current_player.borrow());
+        println!("Player: {:?}\n{}",self.current_player.borrow().player,self.current_player.borrow());
     }
 
-    fn calc_jumps(&self, row:usize, col: usize,p_info: &mut Vec<Moves>) {
-        self.dfs_jumps(row,col,Moves{start_loc: (row,col),end_loc: (9,9),jump_path: HashSet::new()},p_info);
+    fn calc_jumps(&self, row:usize, col: usize,p_info: &mut Vec<Moves>,player: Player ) {
+        self.dfs_jumps(row,col,Moves{start_loc: (row,col),end_loc: (9,9),jump_path: HashSet::new()},p_info,player);
     }
 
-    fn dfs_jumps(&self, row: usize, col:usize, path_par:Moves, p_info: &mut Vec<Moves>) {
+    fn dfs_jumps(&self, row: usize, col:usize, path_par:Moves, p_info: &mut Vec<Moves>,player: Player) {
 
         let mut nothing_found = true; 
 
+        let can_jump = |enemy_row: i32,enemy_col: i32,new_row: i32,new_col: i32| -> bool {
+            !self.is_off_screen(enemy_row,enemy_col) && !self.is_off_screen(new_row,new_col ) &&
+                !path_par.jump_path.contains(&(enemy_row as usize, enemy_col as usize)) && 
+                player.get_other().does_piece_match(self.board[enemy_row as usize][enemy_col as usize]) &&
+                (self.board[new_row as usize][new_col as usize] == BoardPiece::Empty || 
+                 path_par.jump_path.contains(&(new_row as usize, new_col as usize))
+                )
+        };
+
         // check right ;
-        if !self.is_off_screen(row as i32 + self.player_turn as i32, col as i32 + 1) && 
-            ! self.is_off_screen(row as i32 + 2*(self.player_turn as i32), col as i32 + 2) &&
-            ! path_par.jump_path.contains(&((row as i32 + self.player_turn as i32) as usize,col + 1)) && 
-            ! self.player_turn.does_piece_match(self.board[(row as i32 + self.player_turn as i32) as usize][col + 1]) && 
-            (self.board[(row as i32 + 2*(self.player_turn as i32)) as usize][col + 2] == BoardPiece::Empty ||
-             path_par.jump_path.contains(&((row as i32 + 2*(self.player_turn as i32)) as usize, col + 2))
-            )
+        if can_jump(row as i32 + player as i32, col as i32 + 1, row as i32 + 2*(player as i32), col as i32 + 2)
         {
             nothing_found = false; 
             let mut path = path_par.clone(); 
-            path.jump_path.insert(((row as i32 + self.player_turn as i32) as usize,col + 1));
-            self.dfs_jumps((row as i32 + 2*(self.player_turn as i32)) as usize,col + 2,path,p_info);
+            path.jump_path.insert(((row as i32 + player as i32) as usize,col + 1));
+            self.dfs_jumps((row as i32 + 2*(player as i32)) as usize,col + 2,path,p_info,player);
         }
 
         // check left
-        if !self.is_off_screen(row as i32 + self.player_turn as i32, col as i32 - 1) && 
-            ! self.is_off_screen(row as i32 + 2*(self.player_turn as i32), col as i32 - 2) &&
-            ! path_par.jump_path.contains(&((row as i32 + self.player_turn as i32) as usize,col - 1)) && 
-            ! self.player_turn.does_piece_match(self.board[(row as i32 + self.player_turn as i32) as usize][col - 1]) && 
-            (self.board[(row as i32 + 2*(self.player_turn as i32)) as usize][col - 2] == BoardPiece::Empty ||
-             path_par.jump_path.contains(&((row as i32 + 2*(self.player_turn as i32)) as usize, col - 2))
-            )
+        if can_jump(row as i32 + player as i32, col as i32 - 1, row as i32 + 2*(player as i32), col as i32 - 2)
         {
             println!("FL");
             nothing_found = false; 
             let mut path = path_par.clone(); 
-            path.jump_path.insert(((row as i32 + self.player_turn as i32) as usize,col - 1));
-            self.dfs_jumps((row as i32 + 2*(self.player_turn as i32)) as usize,col - 2,path,p_info);
+            path.jump_path.insert(((row as i32 + player as i32) as usize,col - 1));
+            self.dfs_jumps((row as i32 + 2*(player as i32)) as usize,col - 2,path,p_info,player);
 
         }
         // /check back right
         if  self.board[path_par.start_loc.0][path_par.start_loc.1].is_king() &&
-            !self.is_off_screen(row as i32 - self.player_turn as i32, col as i32 + 1) && 
-            ! self.is_off_screen(row as i32 - 2*(self.player_turn as i32), col as i32 + 2) &&
-            ! path_par.jump_path.contains(&((row as i32 - self.player_turn as i32) as usize,col + 1)) && 
-            ! self.player_turn.does_piece_match(self.board[(row as i32 - self.player_turn as i32) as usize][col + 1]) && 
-            (self.board[(row as i32 - 2*(self.player_turn as i32)) as usize][col + 2] == BoardPiece::Empty ||
-             path_par.jump_path.contains(&((row as i32 - 2*(self.player_turn as i32)) as usize, col + 2))
-            )
+            can_jump(row as i32 - player as i32, col as i32 + 1, row as i32 - 2*(player as i32), col as i32 + 2)
         {
             nothing_found = false; 
             let mut path = path_par.clone(); 
-            path.jump_path.insert(((row as i32 - self.player_turn as i32) as usize,col + 1));
-            self.dfs_jumps((row as i32 - 2*(self.player_turn as i32)) as usize,col + 2,path,p_info);
+            path.jump_path.insert(((row as i32 - player as i32) as usize,col + 1));
+            self.dfs_jumps((row as i32 - 2*(player as i32)) as usize,col + 2,path,p_info,player);
         }
 
         // check back left 
         if  self.board[path_par.start_loc.0][path_par.start_loc.1].is_king() &&
-            !self.is_off_screen(row as i32 - self.player_turn as i32, col as i32 - 1) && 
-            ! self.is_off_screen(row as i32 - 2*(self.player_turn as i32), col as i32 - 2) &&
-            ! path_par.jump_path.contains(&((row as i32 - self.player_turn as i32) as usize,col - 1)) && 
-            ! self.player_turn.does_piece_match(self.board[(row as i32 - self.player_turn as i32) as usize][col - 1]) && 
-            (self.board[(row as i32 - 2*(self.player_turn as i32)) as usize][col - 2] == BoardPiece::Empty ||
-             path_par.jump_path.contains(&((row as i32 - 2*(self.player_turn as i32)) as usize, col - 2))
-            )
+            can_jump(row as i32 - player as i32, col as i32 - 1, row as i32 - 2*(player as i32), col as i32 - 2)
         {
             nothing_found = false; 
             let mut path = path_par.clone(); 
-            path.jump_path.insert(((row as i32 - self.player_turn as i32) as usize,col - 1));
-            self.dfs_jumps((row as i32 - 2*(self.player_turn as i32)) as usize,col - 2,path,p_info);
+            path.jump_path.insert(((row as i32 - player as i32) as usize,col - 1));
+            self.dfs_jumps((row as i32 - 2*(player as i32)) as usize,col - 2,path,p_info,player);
 
         }
         if nothing_found {
@@ -277,7 +260,7 @@ impl Board {
                     p_info.moves.clear(); 
                     p_info.can_jump = true; 
                 }
-                self.calc_jumps(row,col,&mut p_info.moves);
+                self.calc_jumps(row,col,&mut p_info.moves, p_info.player);
             }
             if p_info.can_jump {
                 continue; 
@@ -286,28 +269,28 @@ impl Board {
             if self.is_move_legal(row,col,Move::ForwardRight,p_info) {
                 p_info.moves.push(Moves {
                     start_loc: (row,col), 
-                    end_loc: (((row as i32) + (self.player_turn as i32)) as usize,col + 1),
+                    end_loc: (((row as i32) + (p_info.player as i32)) as usize,col + 1),
                     jump_path: HashSet::new()
                 });
             }
             if self.is_move_legal(row,col,Move::ForwardLeft,p_info){
                 p_info.moves.push(Moves {
                     start_loc: (row,col), 
-                    end_loc: (((row as i32) + (self.player_turn as i32)) as usize,col - 1),
+                    end_loc: (((row as i32) + (p_info.player as i32)) as usize,col - 1),
                     jump_path: HashSet::new()
                 });
             }
             if self.is_move_legal(row,col,Move::BackwardRight,p_info){
                 p_info.moves.push(Moves {
                     start_loc: (row,col), 
-                    end_loc: (((row as i32) - (self.player_turn as i32)) as usize,col + 1),
+                    end_loc: (((row as i32) - (p_info.player as i32)) as usize,col + 1),
                     jump_path: HashSet::new()
                 });
             }
             if self.is_move_legal(row,col,Move::BackwardLeft,p_info){
                 p_info.moves.push(Moves {
                     start_loc: (row,col), 
-                    end_loc: (((row as i32) - (self.player_turn as i32)) as usize,col - 1),
+                    end_loc: (((row as i32) - (p_info.player as i32)) as usize,col - 1),
                     jump_path: HashSet::new()
                 });
             }
@@ -317,7 +300,7 @@ impl Board {
     pub fn do_move(&mut self, mv: usize) -> bool{ 
 
         let mut player_info = self.current_player.borrow_mut(); 
-        let mut other_player = match self.player_turn {
+        let mut other_player = match player_info.player {
             Player::Red => self.black_info.borrow_mut(), 
             Player::Black => self.red_info.borrow_mut()
         };
@@ -329,7 +312,7 @@ impl Board {
         let (start_row,start_col) = move_obj.start_loc; 
         let (end_row,end_col) = move_obj.end_loc; 
 
-        if end_row == 8 || end_row == 0 {
+        if end_row == 7 || end_row == 0 {
             self.board[end_row][end_col] = self.board[start_row][start_col].promote();
         } else {
             self.board[end_row][end_col] = self.board[start_row][start_col];
@@ -343,21 +326,16 @@ impl Board {
 
         player_info.piece_locs.remove(&(start_row,start_col));
         player_info.piece_locs.insert((end_row,end_col));
-        println!("New Pieces: {:?}", player_info.piece_locs);
 
-        self.player_turn = self.player_turn.get_other();
+        let last_player = player_info.player; 
 
         drop(player_info);
         drop(other_player);
 
-        match self.player_turn {
+        match last_player {
             Player::Red => self.current_player = self.red_info.clone(),
             Player::Black => self.current_player = self.black_info.clone()
         };
-        // println!("player_turn: {:?}",self.player_turn);
-        // println!("red_info: {}",self.red_info.borrow());
-        // println!("black_info: {}",self.black_info.borrow());
-        // println!("current_player: {}",self.current_player.borrow());
 
         self.calc_moves();
         true
@@ -402,22 +380,22 @@ impl Board {
 
         match mv {
             Move::ForwardRight => {
-                let new_row = row as i32 + self.player_turn as i32; 
+                let new_row = row as i32 + player_info.player as i32; 
                 let new_col = col as i32 + 1; 
                 can_move_to(new_row,new_col)
             }, 
             Move::ForwardLeft => {
-                let new_row = row as i32 + self.player_turn as i32; 
+                let new_row = row as i32 + player_info.player as i32; 
                 let new_col = col as i32 - 1; 
                 can_move_to(new_row,new_col)
             }, 
             Move::BackwardRight => {
-                let new_row = row as i32 - self.player_turn as i32; 
+                let new_row = row as i32 - player_info.player as i32; 
                 let new_col = col as i32 + 1; 
                 can_move_to(new_row,new_col)
             },
             Move::BackwardLeft => {
-                let new_row = row as i32 - self.player_turn as i32; 
+                let new_row = row as i32 - player_info.player as i32; 
                 let new_col = col as i32 - 1; 
                 can_move_to(new_row,new_col)
 
@@ -425,11 +403,11 @@ impl Board {
             Move::Jump => {
                 let mut can_jump_acc = false; 
                 if piece.is_king() {
-                    can_jump_acc |= can_jump(row as i32 - self.player_turn as i32, col as i32 + 1, row as i32 - 2*(self.player_turn as i32), col as i32 + 2, self.player_turn);
-                    can_jump_acc |= can_jump(row as i32 - self.player_turn as i32, col as i32 - 1, row as i32 - 2*(self.player_turn as i32), col as i32 - 2, self.player_turn);
+                    can_jump_acc |= can_jump(row as i32 - player_info.player as i32, col as i32 + 1, row as i32 - 2*(player_info.player as i32), col as i32 + 2, player_info.player);
+                    can_jump_acc |= can_jump(row as i32 - player_info.player as i32, col as i32 - 1, row as i32 - 2*(player_info.player as i32), col as i32 - 2, player_info.player);
                 }
-                can_jump_acc |= can_jump(row as i32 + self.player_turn as i32, col as i32 + 1, row as i32 + 2*(self.player_turn as i32), col as i32 + 2, self.player_turn);
-                can_jump_acc |= can_jump(row as i32 + self.player_turn as i32, col as i32 - 1, row as i32 + 2*(self.player_turn as i32), col as i32 - 2, self.player_turn);
+                can_jump_acc |= can_jump(row as i32 + player_info.player as i32, col as i32 + 1, row as i32 + 2*(player_info.player as i32), col as i32 + 2, player_info.player);
+                can_jump_acc |= can_jump(row as i32 + player_info.player as i32, col as i32 - 1, row as i32 + 2*(player_info.player as i32), col as i32 - 2, player_info.player);
                 can_jump_acc
             },
         }

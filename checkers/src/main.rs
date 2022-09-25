@@ -19,7 +19,7 @@ fn read_user_input() -> usize {
     let mut s = String::new();
     match stdin().read_line(&mut s) {
         Err(_) => {
-            println!("Please Enter a Valid Number 1");
+            println!("Please Enter a Valid Number");
             read_user_input()
         },
         Ok(_) => {
@@ -30,8 +30,8 @@ fn read_user_input() -> usize {
                 s.pop();
             }
             match s.parse::<u32>() {
-                Err(e) => {
-                    println!("{:?}",e);
+                Err(_) => {
+                    println!("Please Enter a Valid Number");
                     read_user_input()
                 },
                 Ok(x) => {
