@@ -1,5 +1,5 @@
 mod err; 
-use std::collections::{HashSet,HashMap};
+use std::collections::HashSet;
 use std::cell::RefCell;
 use std::rc::Rc;
 use colored::Colorize;
@@ -203,7 +203,6 @@ impl Board {
                }
             }
         }
-        println!("black_info {:?}",obj.black_info);
         obj.calc_moves(); 
         obj
     }
@@ -240,7 +239,6 @@ impl Board {
         // check left
         if can_jump(row as i32 + player as i32, col as i32 - 1, row as i32 + 2*(player as i32), col as i32 - 2)
         {
-            println!("FL");
             nothing_found = false; 
             let mut path = path_par.clone(); 
             path.jump_path.insert(((row as i32 + player as i32) as usize,col - 1));
@@ -460,6 +458,10 @@ impl Board {
                 can_jump_acc
             },
         }
+    }
+    
+    pub fn get_current_player(&self) -> Player {
+        self.current_player.borrow().player
     }
 }
 
