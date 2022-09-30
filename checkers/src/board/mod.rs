@@ -82,7 +82,7 @@ impl Move {
 }
 
 #[derive(Debug,Clone)]
-struct Moves {
+pub struct Moves {
     jump_path: HashSet<(usize,usize)>, 
     start_loc: (usize,usize), 
     end_loc:(usize,usize)
@@ -97,12 +97,13 @@ impl std::fmt::Display for Moves {
 
 
 #[derive(Debug,Clone)]
-struct PlayerInfo {
+pub struct PlayerInfo {
     moves: Vec<Moves>, 
     can_jump: bool,
     piece_locs:HashSet<(usize,usize)>,
     player: Player
 }
+
 impl std::fmt::Display for PlayerInfo {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> Result<(),std::fmt::Error> {
         let mut printable = String::from("");
@@ -112,6 +113,13 @@ impl std::fmt::Display for PlayerInfo {
         write!(fmt,"{}",printable)
     }
 }
+
+impl PlayerInfo {
+    pub fn get_moves(&self) -> &Vec<Moves> {
+        &self.moves
+    }
+}
+
 
 #[derive(Debug)]
 pub struct Board {
@@ -165,15 +173,9 @@ impl std::fmt::Display for Board {
 }
 
 impl Board {
-    pub fn new() -> Self {
-        let black_info_r = Rc::new(RefCell::new(PlayerInfo{
-                moves: Vec::new(),
-                can_jump: false,
-                piece_locs: HashSet::with_capacity(12),
-                player: Player::Black
-            }));
-        let mut obj = Self {
-            board: [
+    pub fn new(prompt_for_file_input: bool) -> Self {
+        let board = match prompt_for_file_input {
+            true => {[
                 [BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty],
                 [BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black],
                 [BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty],
@@ -182,7 +184,26 @@ impl Board {
                 [BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red],
                 [BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty],
                 [BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red],
-            ],
+            ]}, 
+            false => {[
+                [BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty],
+                [BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black],
+                [BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty],
+                [BoardPiece::Empty,BoardPiece::Empty,BoardPiece::Empty,BoardPiece::Empty,BoardPiece::Empty,BoardPiece::Empty,BoardPiece::Empty,BoardPiece::Empty],
+                [BoardPiece::Empty,BoardPiece::Empty,BoardPiece::Empty,BoardPiece::Empty,BoardPiece::Empty,BoardPiece::Empty,BoardPiece::Empty,BoardPiece::Empty],
+                [BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red],
+                [BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty],
+                [BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red],
+            ]}
+        };
+        let black_info_r = Rc::new(RefCell::new(PlayerInfo{
+                moves: Vec::new(),
+                can_jump: false,
+                piece_locs: HashSet::with_capacity(12),
+                player: Player::Black
+            }));
+        let mut obj = Self {
+            board,
             current_player: black_info_r.clone(),
             black_info: black_info_r,
             red_info: Rc::new(RefCell::new(PlayerInfo {
@@ -206,6 +227,11 @@ impl Board {
         obj.calc_moves(); 
         obj
     }
+
+    pub fn get_player_info(&self) -> Rc<RefCell<PlayerInfo>> {
+        self.current_player.clone()
+    }
+
     pub fn print_moves(&self) {
         println!("Player: {:?}\n{}",self.current_player.borrow().player,self.current_player.borrow());
     }
@@ -348,6 +374,7 @@ impl Board {
             Player::Red => self.black_info.borrow_mut(), 
             Player::Black => self.red_info.borrow_mut()
         };
+
         let move_obj = match player_info.moves.get(mv) {
             Some(m) => m, 
             None => return false 
