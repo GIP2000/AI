@@ -14,6 +14,34 @@ enum BoardPiece {
     Empty
 }
 
+impl TryFrom<char> for BoardPiece {
+    type Error  = (); 
+    fn try_from(value: char) -> Result<Self, Self::Error> {
+        match value {
+            '1' => {
+                Ok(Self::Red)
+            },
+            '2' => {
+                Ok(Self::Red)
+            },
+            '3' => {
+                Ok(Self::Red)
+            },
+            '4' => {
+                Ok(Self::Red)
+            },
+            ' ' => {
+                Ok(Self::Red)
+            },
+            _ => {
+                Err(())
+            }
+        }
+
+    }
+
+}
+
 impl BoardPiece {
     fn is_red(&self) -> bool {
         const LAST_RED: u32 = 1; 
@@ -173,19 +201,29 @@ impl std::fmt::Display for Board {
 }
 
 impl Board {
-    pub fn new(prompt_for_file_input: bool) -> Self {
-        let board = match prompt_for_file_input {
-            true => {[
-                [BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty],
-                [BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black],
-                [BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty],
-                [BoardPiece::Empty,BoardPiece::Empty,BoardPiece::Empty,BoardPiece::Empty,BoardPiece::Empty,BoardPiece::Empty,BoardPiece::Empty,BoardPiece::Empty],
-                [BoardPiece::Empty,BoardPiece::Empty,BoardPiece::Empty,BoardPiece::Empty,BoardPiece::Empty,BoardPiece::Empty,BoardPiece::Empty,BoardPiece::Empty],
-                [BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red],
-                [BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty],
-                [BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red],
-            ]}, 
-            false => {[
+    pub fn new(file_input: Option<String>) -> Self {
+        let board = match file_input {
+            Some(s) => {
+                let mut board = [[BoardPiece::Empty; 8]; 8];
+                 for (i,row) in s.split('\n').enumerate() {
+                    for (j,c) in row.chars().into_iter().enumerate() {
+                        if i%2 == j%2 {
+                            continue; 
+                        }
+                        match c.try_into() {
+                            Ok(bp) => {
+                                board[i][j] = bp;
+                            }, 
+                            Err(_) => {
+                                println!("Error Reading input {:}, making default Board!", s);
+                                return Self::new(None);
+                            }
+                        }
+                    }
+                }
+                board
+            }, 
+            None => {[
                 [BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty],
                 [BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black],
                 [BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty,BoardPiece::Black,BoardPiece::Empty],
@@ -226,6 +264,15 @@ impl Board {
         }
         obj.calc_moves(); 
         obj
+    }
+
+    pub fn get_net_pieces(&self) -> i8 {
+        let cp = self.current_player.borrow(); 
+        let op = match cp.player {
+            Player::Red => self.black_info.borrow(), 
+            Player::Black => self.red_info.borrow()
+        };
+        cp.piece_locs.len() as i8 - op.piece_locs.len() as i8
     }
 
     pub fn get_player_info(&self) -> Rc<RefCell<PlayerInfo>> {
