@@ -1,9 +1,9 @@
-mod board; 
-mod ai; 
+mod board;
+mod ai;
 use board::{Board,Player};
 use ai::predict_move;
 use std::io::stdin;
-use std::fs::read_to_string; 
+use std::fs::read_to_string;
 
 type MoveFinderType = fn(Board, time_in_sec: u32) -> usize;
 
@@ -52,7 +52,7 @@ fn read_user_input(b:Board, time_limit: u32) -> usize {
                     read_user_input(b, time_limit)
                 },
                 Ok(x) => {
-                   x as usize 
+                   x as usize
                 }
             }
         }
@@ -61,13 +61,13 @@ fn read_user_input(b:Board, time_limit: u32) -> usize {
 }
 
 fn confirm(input: &str) -> bool {
-    println!("{:}", input); 
-    let mut s = String::new(); 
+    println!("{:}", input);
+    let mut s = String::new();
     match stdin().read_line(&mut s) {
         Err(_) => {
             println!("Invalid Input");
             confirm(input)
-        }, 
+        },
         Ok(_) => {
             if let Some('\n')=s.chars().next_back() {
                 s.pop();
@@ -110,31 +110,31 @@ fn get_init_board() -> Option<String> {
         true => {
             let mut path = String::new();
             fn read_path(inner_s: &mut String) {
-                println!("Please Input a Valid Path"); 
-                if stdin().read_line(inner_s).is_err() { 
+                println!("Please Input a Valid Path");
+                if stdin().read_line(inner_s).is_err() {
                     println!("Error Reading Input");
                     read_path(inner_s)
                 }
             }
-            read_path(&mut path); 
+            read_path(&mut path);
             match read_to_string(&path) {
                 Err(_) => {
                     println!("Error: Invalid File Path {:}, Creating a Default Board", path);
                     None
-                }, 
+                },
                 Ok(s) => {
                     Some(s)
                 }
             }
-        }, 
+        },
         false => {
             None
         }
     }
-} 
+}
 
 fn main() {
-    let mut b = Board::new(get_init_board()); 
-    let (red,black) = get_game_mode(); 
+    let mut b = Board::new(get_init_board());
+    let (red,black) = get_game_mode();
     game_loop(&mut b, red, black, 20);
 }
