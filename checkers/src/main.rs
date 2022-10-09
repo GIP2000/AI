@@ -8,7 +8,6 @@ use std::fs::read_to_string;
 type MoveFinderType = fn(Board, time_in_sec: u32) -> usize;
 
 fn game_loop (b: &mut Board, red_mover: MoveFinderType, black_mover: MoveFinderType, time_limit: u32 ) {
-    //hello
     let (mut is_game_over, mut is_tie, mut winner) = b.is_game_over();
     while !is_game_over {
         println!("{:}",b);
