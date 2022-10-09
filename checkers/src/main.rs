@@ -12,13 +12,20 @@ fn game_loop (b: &mut Board, red_mover: MoveFinderType, black_mover: MoveFinderT
     while !is_game_over {
         println!("{:}",b);
         b.print_moves();
-        let mv = match b.get_current_player() {
-            Player::Red => red_mover(b.clone(), time_limit),
-            Player::Black => black_mover(b.clone(), time_limit)
+        let get_move = |m: &MoveFinderType, b: Board| {
+            m(b, time_limit)
         };
 
-        while !b.do_move(mv) {
+        let mv = match b.get_current_player() {
+            Player::Red => &red_mover,
+            Player::Black => &black_mover
+        };
+
+        loop {
+            let m = get_move(mv, b.clone());
+            if b.do_move(m) {break}
             println!("Please Enter a Number in the range");
+            println!("You Tried to do {:?}", m);
         }
         (is_game_over, is_tie, winner) = b.is_game_over();
     }
@@ -136,5 +143,5 @@ fn get_init_board() -> Option<String> {
 fn main() {
     let mut b = Board::new(get_init_board());
     let (red,black) = get_game_mode();
-    game_loop(&mut b, red, black, 20);
+    game_loop(&mut b, red, black, 15);
 }
