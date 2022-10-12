@@ -6,7 +6,7 @@ use colored::Colorize;
 
 
 #[derive(Debug, Copy, Clone, PartialEq,Eq)]
-enum BoardPiece {
+pub enum BoardPiece {
     Red,
     KingRed,
     Black,
@@ -43,18 +43,18 @@ impl TryFrom<char> for BoardPiece {
 }
 
 impl BoardPiece {
-    fn is_red(&self) -> bool {
+    pub fn is_red(&self) -> bool {
         const LAST_RED: u32 = 1;
         *self as u32 <= LAST_RED
     }
 
-    fn is_black(&self) -> bool {
+    pub fn is_black(&self) -> bool {
         const LAST_RED: u32 = 1;
         const LAST_BLACK: u32 = 3;
         *self as u32 <= LAST_BLACK && *self as u32 > LAST_RED
     }
 
-    fn is_king (&self) -> bool {
+    pub fn is_king (&self) -> bool {
         *self as u32 % 2 != 0 && *self != BoardPiece::Empty
     }
 
@@ -266,13 +266,23 @@ impl Board {
         obj
     }
 
-    pub fn get_net_pieces(&self) -> i8 {
+    pub fn get_pieces(&self) -> (Vec<(BoardPiece, (usize, usize))>, Vec<(BoardPiece, (usize, usize))>) {
         let cp = self.current_player.borrow();
         let op = match cp.player {
             Player::Red => self.black_info.borrow(),
             Player::Black => self.red_info.borrow()
         };
-        cp.piece_locs.len() as i8 - op.piece_locs.len() as i8
+        let mut mine: Vec<(BoardPiece, (usize, usize))> = Vec::new();
+        let mut other: Vec<(BoardPiece, (usize, usize))> = Vec::new();
+
+        for &(row,col) in cp.piece_locs.iter() {
+            mine.push((self.board[row][col], (row, col)));
+        }
+        for &(row,col) in op.piece_locs.iter() {
+            other.push((self.board[row][col], (row, col)));
+        }
+
+        return (mine,other);
     }
 
     pub fn get_player_info(&self) -> Rc<RefCell<PlayerInfo>> {

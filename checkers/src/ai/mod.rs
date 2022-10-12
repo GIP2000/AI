@@ -34,9 +34,29 @@ pub fn predict_move(b: Board, time_limit: u32) -> usize {
 }
 
 fn h(state:&Board, is_max: bool) -> i32 {
-    100*(state.get_net_pieces() as i32)*match is_max {
-        true=>{1},
-        false=>{-1}
+    let (my_pieces, other_pieces) = state.get_pieces();
+    let mut score = 0;
+    // Piece Worth
+    my_pieces.into_iter().for_each(|(piece,_)| {
+        if piece.is_king() {
+            score += 5;
+        } else {
+            score += 1;
+        }
+    });
+    other_pieces.into_iter().for_each(|(piece,_)| {
+        if piece.is_king() {
+            score -= 5;
+        } else {
+            score -= 1;
+        }
+    });
+    score *= 100; // Piece Worth Multiplier
+    // Inverter
+    if is_max {
+        score
+    } else {
+        -score
     }
 }
 
