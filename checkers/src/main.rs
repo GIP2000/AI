@@ -5,24 +5,29 @@ use ai::predict_move;
 use std::io::stdin;
 use std::fs::read_to_string;
 
-type MoveFinderType = fn(Board, time_in_sec: u32) -> usize;
+type AutomatedMoveFinder = fn(Board, time_in_sec: u32) -> usize;
+type ManualMoveFinder = fn() -> usize;
 
-fn game_loop (b: &mut Board, red_mover: MoveFinderType, black_mover: MoveFinderType, time_limit: u32 ) {
+enum MoveFinder {
+    Automated(AutomatedMoveFinder),
+    Manual(ManualMoveFinder),
+}
+
+fn game_loop (b: &mut Board, red_mover: MoveFinder, black_mover: MoveFinder, time_limit: u32 ) {
     let (mut is_game_over, mut is_tie, mut winner) = b.is_game_over();
     while !is_game_over {
         println!("{:}",b);
         b.print_moves();
-        let get_move = |m: &MoveFinderType, b: Board| {
-            m(b, time_limit)
-        };
-
         let mv = match b.get_current_player() {
             Player::Red => &red_mover,
-            Player::Black => &black_mover
+            Player::Black => &black_mover,
         };
 
         loop {
-            let m = get_move(mv, b.clone());
+            let m = match mv {
+                MoveFinder::Manual(f) => f(),
+                MoveFinder::Automated(f) => f(b.clone(), time_limit)
+            };
             if b.do_move(m) {break}
             println!("Please Enter a Number in the range");
             println!("You Tried to do {:?}", m);
@@ -36,15 +41,13 @@ fn game_loop (b: &mut Board, red_mover: MoveFinderType, black_mover: MoveFinderT
     }
     println!("Player {:?} wins",winner.unwrap())
 }
-
-
-fn read_user_input(b:Board, time_limit: u32) -> usize {
-
+fn read_number(input: &str) -> u32 {
+    println!("{:}",input);
     let mut s = String::new();
     match stdin().read_line(&mut s) {
         Err(_) => {
             println!("Please Enter a Valid Number");
-            read_user_input(b, time_limit)
+            read_number(input)
         },
         Ok(_) => {
             if let Some('\n')=s.chars().next_back() {
@@ -56,15 +59,19 @@ fn read_user_input(b:Board, time_limit: u32) -> usize {
             match s.parse::<u32>() {
                 Err(_) => {
                     println!("Please Enter a Valid Number");
-                    read_user_input(b, time_limit)
+                    read_number(input)
                 },
                 Ok(x) => {
-                   x as usize
+                   x
                 }
             }
         }
     }
 
+}
+
+fn read_user_input() -> usize {
+    read_number("Please Pick a Move") as usize
 }
 
 fn confirm(input: &str) -> bool {
@@ -96,15 +103,15 @@ fn confirm(input: &str) -> bool {
 }
 
 
-fn get_single_game_mode(input: &str) -> fn(Board, time_limit: u32)->usize {
+fn get_single_game_mode(input: &str) -> MoveFinder{
     match confirm(input) {
-        true=> read_user_input,
-        false=> predict_move,
+        true=> MoveFinder::Manual(read_user_input),
+        false=> MoveFinder::Automated(predict_move),
     }
 }
 
 
-fn get_game_mode() -> (MoveFinderType, MoveFinderType) {
+fn get_game_mode() -> (MoveFinder, MoveFinder) {
     (
         get_single_game_mode("Would you like to play for red (y/n)"),
         get_single_game_mode("Would you like to play for Blue (y/n)")
@@ -124,6 +131,13 @@ fn get_init_board() -> Option<String> {
                 }
             }
             read_path(&mut path);
+            if let Some('\n')=path.chars().next_back() {
+                path.pop();
+            }
+            if let Some('\r')=path.chars().next_back() {
+                path.pop();
+            }
+
             match read_to_string(&path) {
                 Err(_) => {
                     println!("Error: Invalid File Path {:}, Creating a Default Board", path);
@@ -143,5 +157,6 @@ fn get_init_board() -> Option<String> {
 fn main() {
     let mut b = Board::new(get_init_board());
     let (red,black) = get_game_mode();
-    game_loop(&mut b, red, black, 15);
+    let time_limit = read_number("Please enter a time limit in seconds");
+    game_loop(&mut b, red, black, time_limit);
 }

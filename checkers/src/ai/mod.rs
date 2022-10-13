@@ -4,21 +4,27 @@ use std::time::SystemTime;
 const MIN:i32 = -MAX;
 
 #[derive(Clone,Copy)]
-enum ABResultType{
+enum ABResult{
     TimeLimitExpired,
-    DepthReached,
-    Finished,
+    DepthReached(Option<usize>),
+    Finished(Option<usize>),
     Inital,
 }
 
-enum EndEarly {
-    Yes((i32, ABResult)),
-    No
-}
+impl ABResult {
 
-struct ABResult {
-    r#type: ABResultType,
-    value: Option<usize>
+    fn set(mut self, val: usize) -> Self{
+        match self {
+            Self::DepthReached(ref mut wv) => {
+                *wv = Some(val);
+            },
+            Self::Finished(ref mut wv) => {
+                *wv = Some(val);
+            },
+            _=> {}
+        }
+        self
+    }
 }
 
 
@@ -35,79 +41,70 @@ pub fn predict_move(b: Board, time_limit: u32) -> usize {
     let mut mv = 0;
     println!("Starting AB/P");
     let now = SystemTime::now();
+    let time_limit = ((time_limit as u128) * 1000) - 100;
     loop {
-        // println!("Starting depth {:}, time is {:}ms", d, now.elapsed().expect("Err: Invalid Sys time").as_millis());
-        let (_, v) = max_value(b.clone(), d, MIN, MAX, ((time_limit as u128) * 1000) - 100, &now);
-        match v.r#type {
-            ABResultType::Finished => {
+        let (_, v) = max_value(b.clone(), d, MIN, MAX, time_limit, &now);
+        match v {
+            ABResult::Finished(value) => {
                 println!("Found Bottom Depth: {:?}", d);
-                return v.value.expect("Err: Finished without value");
+                return value.expect("Err: Finished without value");
             },
-            ABResultType::TimeLimitExpired => {
-                println!("Time limit expired in depth {:?}, curreint time is {:?}", d, now.elapsed().expect("Err: Invalid Sys time").as_millis());
+            ABResult::TimeLimitExpired => {
+                println!("Time limit expired in depth {:?}, current time is {:?}", d, now.elapsed().expect("Err: Invalid Sys time").as_millis());
                 return mv;
             },
-            ABResultType::DepthReached => {
-                println!("Finishe depth {:?}, curreint time is {:?}", d, now.elapsed().expect("Err: Invalid Sys time").as_millis());
-                mv = v.value.expect("Err: No DepthReached without value");
+            ABResult::DepthReached(value) => {
+                println!("Finished depth {:?}, current time is {:?}", d, now.elapsed().expect("Err: Invalid Sys time").as_millis());
+                mv = value.expect("Err: No DepthReached without value");
             },
-            ABResultType::Inital => {
-                panic!("Unreachable Inital value");
+            ABResult::Inital => {
+                if check_time_limit(time_limit, &now) {
+                    println!("Time limit expired in depth {:?}, current time is {:?}", d, now.elapsed().expect("Err: Invalid Sys time").as_millis());
+                    return mv;
+                }
+                println!("Finished depth {:?}, current time is {:?}", d, now.elapsed().expect("Err: Invalid Sys time").as_millis());
+                mv = 0;
             }
         };
         d+=1;
     }
 }
 
+fn check_time_limit(time_limit: u128, now: &SystemTime) -> bool {
+    now.elapsed().expect("Err: Invalid Sys time").as_millis() >= time_limit
+}
 
-fn is_terminal(state: &Board, depth: u32, time_limit: u128, now: &SystemTime, is_max: bool) -> EndEarly {
-    if now.elapsed().expect("Err: Invalid Sys time").as_millis() >= time_limit {
-        return EndEarly::Yes((0, ABResult{
-            r#type: ABResultType::TimeLimitExpired,
-            value: None
-        }));
+
+fn is_terminal(state: &Board, depth: u32, time_limit: u128, now: &SystemTime, is_max: bool) -> Result<(i32,ABResult), ()> {
+    if check_time_limit(time_limit, now){
+        return Result::Ok((0, ABResult::TimeLimitExpired));
     }
     let (is_game_over, is_tie_op, winner) = state.is_game_over();
     if is_game_over {
         let (is_tie, winner) = (is_tie_op.unwrap(), winner.unwrap());
         if is_tie {
-            return EndEarly::Yes((0, ABResult{
-                r#type: ABResultType::Finished,
-                value: None
-            }));
+            return Result::Ok((0, ABResult::Finished(None)));
         }
         if (winner == state.get_current_player() && is_max) || (winner != state.get_current_player() && !is_max) {
-            return EndEarly::Yes((MAX, ABResult{
-                r#type: ABResultType::Finished,
-                value: None
-            }));
+            return Result::Ok((MAX, ABResult::Finished(None)));
         }
-        return EndEarly::Yes((MIN, ABResult{
-            r#type: ABResultType::Finished,
-            value: None
-        }));
+        return Result::Ok((MIN, ABResult::Finished(None)));
     }
     if depth == 0 {
-        return EndEarly::Yes((h(&state, is_max), ABResult {
-            r#type: ABResultType::DepthReached,
-            value: None
-        }));
+        return Result::Ok((h(&state, is_max), ABResult::DepthReached(None)));
     }
-    EndEarly::No
+    Result::Err(())
 
 }
 
 fn max_value(state: Board, depth: u32, mut alpha: i32, beta: i32, time_limit: u128, now: &SystemTime) -> (i32, ABResult){
     match is_terminal(&state, depth, time_limit, now, true) {
-        EndEarly::Yes(r) => return r,
-        EndEarly::No => {}
+        Result::Ok(r) => return r,
+        Result::Err(_) => {}
     };
 
     let mut v = MIN;
-    let mut mv = ABResult {
-        r#type: ABResultType::Inital,
-        value: Some(0)
-    };
+    let mut mv = ABResult::Inital;
     for p_mv in 0..state.get_player_info().borrow().get_moves().len() {
         let mut new_state = state.clone();
         new_state.do_move(p_mv);
@@ -115,14 +112,13 @@ fn max_value(state: Board, depth: u32, mut alpha: i32, beta: i32, time_limit: u1
         // should I update stuff
         if v2 > v {
             v = v2;
-            mv.r#type = t_move.r#type;
-            mv.value = Some(p_mv);
+            mv = t_move.set(p_mv);
             if v > alpha {
                 alpha = v;
             }
         }
         // time limit expired get out
-        if let ABResultType::TimeLimitExpired = t_move.r#type {
+        if let ABResult::TimeLimitExpired = t_move {
             return (v, t_move);
         }
         // should I prune
@@ -135,30 +131,25 @@ fn max_value(state: Board, depth: u32, mut alpha: i32, beta: i32, time_limit: u1
 }
 fn min_value(state: Board, depth: u32, alpha: i32, mut beta: i32, time_limit: u128, now: &SystemTime) -> (i32, ABResult){
     match is_terminal(&state, depth, time_limit, now, false) {
-        EndEarly::Yes(r) => return r,
-        EndEarly::No => {}
+        Result::Ok(r) => return r,
+        Result::Err(_) => {}
     };
 
     let mut v = MAX;
-    let mut mv = ABResult {
-        r#type: ABResultType::Inital,
-        value: Some(0)
-    };
+    let mut mv = ABResult::Inital;
     for p_mv in 0..state.get_player_info().borrow().get_moves().len() {
         let mut new_state = state.clone();
         new_state.do_move(p_mv);
         let (v2,t_move) = max_value(new_state,depth-1, alpha,beta,time_limit, now);
         if v2 < v {
             v = v2;
-            mv.r#type = t_move.r#type;
-            mv.value = Some(p_mv);
+            mv = t_move.set(p_mv);
             if v < beta {
                 beta = v
             }
         }
-
         // time limit expired get out
-        if let ABResultType::TimeLimitExpired = t_move.r#type {
+        if let ABResult::TimeLimitExpired = t_move {
             return (v, t_move);
         }
 

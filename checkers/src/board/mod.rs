@@ -47,7 +47,6 @@ impl BoardPiece {
         const LAST_RED: u32 = 1;
         *self as u32 <= LAST_RED
     }
-
     pub fn is_black(&self) -> bool {
         const LAST_RED: u32 = 1;
         const LAST_BLACK: u32 = 3;
@@ -169,7 +168,7 @@ impl Clone for Board {
             Player::Black => black_info.clone()
         };
         Self {
-            board: self.board,
+            board: self.board.clone(),
             red_info,
             black_info,
             current_player,
@@ -479,7 +478,7 @@ impl Board {
     fn is_move_legal(&self,row: usize, col: usize, mv: Move, player_info: &PlayerInfo) -> bool {
         let piece = self.board[row][col];
         // check its the correct player's turn for the selected piece commented out because I am
-        // only doing this for the
+        // only doing this off of the list of current players pieces
         // if !((piece.is_red() && self.player_turn == Player::Red ) || (piece.is_black() && self.player_turn == Player::Black)){
         //     return false;
         // }
