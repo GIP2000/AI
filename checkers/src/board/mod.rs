@@ -19,19 +19,19 @@ impl TryFrom<char> for BoardPiece {
     fn try_from(value: char) -> Result<Self, Self::Error> {
         match value {
             '1' => {
-                Ok(Self::Red)
+                Ok(Self::Black)
             },
             '2' => {
-                Ok(Self::Red)
+                Ok(Self::KingBlack)
             },
             '3' => {
                 Ok(Self::Red)
             },
             '4' => {
-                Ok(Self::Red)
+                Ok(Self::KingRed)
             },
-            ' ' => {
-                Ok(Self::Red)
+            '0' => {
+                Ok(Self::Empty)
             },
             _ => {
                 Err(())
@@ -200,22 +200,31 @@ impl std::fmt::Display for Board {
 }
 
 impl Board {
-    pub fn new(file_input: Option<String>) -> Self {
+    pub fn new(file_input: &Option<String>) -> Self {
         let board = match file_input {
             Some(s) => {
                 let mut board = [[BoardPiece::Empty; 8]; 8];
                  for (i,row) in s.split('\n').enumerate() {
-                    for (j,c) in row.chars().into_iter().enumerate() {
-                        if i%2 == j%2 {
+                    if i > 7 {
+                        break;
+                    }
+                    let mut col_i = i%2;
+                    for c in row.chars().into_iter() {
+                        if c == ' ' {
                             continue;
+                        }
+                        if col_i > 7 {
+                            println!("File Format Error too many pieces on a row, col_i: {:?}  c:{:?}", col_i, c);
+                            return Self::new(&None);
                         }
                         match c.try_into() {
                             Ok(bp) => {
-                                board[i][j] = bp;
+                                board[7-i][col_i] = bp;
+                                col_i += 2;
                             },
                             Err(_) => {
-                                println!("Error Reading input {:}, making default Board!", s);
-                                return Self::new(None);
+                                println!("Error Reading input {:}, making default Board!", c);
+                                return Self::new(&None);
                             }
                         }
                     }
@@ -239,16 +248,48 @@ impl Board {
                 piece_locs: HashSet::with_capacity(12),
                 player: Player::Black
             }));
+        let red_info_r = Rc::new(RefCell::new(PlayerInfo {
+            moves: Vec::new(),
+            can_jump: false,
+            piece_locs: HashSet::with_capacity(12),
+            player: Player::Red
+        }));
         let mut obj = Self {
             board,
-            current_player: black_info_r.clone(),
+            current_player: match file_input {
+                None => {
+                    black_info_r.clone()
+                },
+                Some(s) => {
+                    match s.lines().nth(8) {
+                        Some(ns) => {
+                            match ns.parse::<u32>() {
+                               Err(_) => {
+                                println!("Invalid File input: Player is not a number, defaulting to Blue");
+                                black_info_r.clone()
+                               },
+                               Ok(n) => {
+                                   match n {
+                                       0 => black_info_r.clone(),
+                                       1 => red_info_r.clone(),
+                                       _ => {
+                                            println!("Invalid File input: Player # must be 1 or 0, defaulting to Blue");
+                                            black_info_r.clone()
+                                       }
+                                   }
+                               }
+                            }
+
+                        },
+                        None => {
+                            println!("Invalid File input: No player to choose, defaulting to Blue");
+                            black_info_r.clone()
+                        }
+                    }
+                }
+            } ,
             black_info: black_info_r,
-            red_info: Rc::new(RefCell::new(PlayerInfo {
-                moves: Vec::new(),
-                can_jump: false,
-                piece_locs: HashSet::with_capacity(12),
-                player: Player::Red
-            })),
+            red_info: red_info_r ,
             game_over: false
         };
 

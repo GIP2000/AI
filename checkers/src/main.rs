@@ -155,8 +155,29 @@ fn get_init_board() -> Option<String> {
 }
 
 fn main() {
-    let mut b = Board::new(get_init_board());
+    let init = get_init_board();
+    let mut b = Board::new(&init);
     let (red,black) = get_game_mode();
-    let time_limit = read_number("Please enter a time limit in seconds");
+    let time_limit = match init {
+        Some(fs) => {
+            match fs.lines().nth(9) {
+                Some(s)=> {
+                    s.parse::<u32>().unwrap_or_else(|_| {
+                        println!("Error Reading file could not parse 9th line to u32");
+                        read_number("Please enter a time limit in seconds")
+                    })
+                },
+                None => {
+                    println!("Error Reading file no 9th line found");
+                    read_number("Please enter a time limit in seconds")
+                }
+            }
+            // read_number("Please enter a time limit in seconds")
+        },
+        None => {
+            read_number("Please enter a time limit in seconds")
+        }
+    };
+    // let time_limit = read_number("Please enter a time limit in seconds");
     game_loop(&mut b, red, black, time_limit);
 }
