@@ -50,7 +50,8 @@ pub fn predict_move(b: Board, time_limit: u32) -> usize {
                 return value.expect("Err: Finished without value");
             },
             ABResult::TimeLimitExpired => {
-                println!("Time limit expired in depth {:?}, current time is {:?}", d, now.elapsed().expect("Err: Invalid Sys time").as_millis());
+                println!("Time limit expired in depth {:?}, current time is {:?}", d, now.elapsed()
+                         .expect("Err: Invalid Sys time").as_millis());
                 return mv;
             },
             ABResult::DepthReached(value) => {
@@ -59,7 +60,8 @@ pub fn predict_move(b: Board, time_limit: u32) -> usize {
             },
             ABResult::Inital => {
                 if check_time_limit(time_limit, &now) {
-                    println!("Time limit expired in depth {:?}, current time is {:?}", d, now.elapsed().expect("Err: Invalid Sys time").as_millis());
+                    println!("Time limit expired in depth {:?}, current time is {:?}", d, now.elapsed()
+                             .expect("Err: Invalid Sys time").as_millis());
                     return mv;
                 }
                 println!("Finished depth {:?}, current time is {:?}", d, now.elapsed().expect("Err: Invalid Sys time").as_millis());
@@ -166,14 +168,14 @@ fn h(state:&Board, is_max: bool) -> i32 {
     // Piece Worth
     my_pieces.into_iter().for_each(|(piece,_)| {
         if piece.is_king() {
-            score += 5;
+            score += 3;
         } else {
             score += 1;
         }
     });
     other_pieces.into_iter().for_each(|(piece,_)| {
         if piece.is_king() {
-            score -= 5;
+            score -= 3;
         } else {
             score -= 1;
         }
