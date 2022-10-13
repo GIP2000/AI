@@ -22,10 +22,10 @@ impl TryFrom<char> for BoardPiece {
                 Ok(Self::Black)
             },
             '2' => {
-                Ok(Self::KingBlack)
+                Ok(Self::Red)
             },
             '3' => {
-                Ok(Self::Red)
+                Ok(Self::KingBlack)
             },
             '4' => {
                 Ok(Self::KingRed)
@@ -208,7 +208,7 @@ impl Board {
                     if i > 7 {
                         break;
                     }
-                    let mut col_i = i%2;
+                    let mut col_i = ((i%2) == 0) as usize;
                     for c in row.chars().into_iter() {
                         if c == ' ' {
                             continue;
@@ -242,6 +242,7 @@ impl Board {
                 [BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red,BoardPiece::Empty,BoardPiece::Red],
             ]}
         };
+
         let black_info_r = Rc::new(RefCell::new(PlayerInfo{
                 moves: Vec::new(),
                 can_jump: false,
@@ -270,8 +271,8 @@ impl Board {
                                },
                                Ok(n) => {
                                    match n {
-                                       0 => black_info_r.clone(),
-                                       1 => red_info_r.clone(),
+                                       1 => black_info_r.clone(),
+                                       2 => red_info_r.clone(),
                                        _ => {
                                             println!("Invalid File input: Player # must be 1 or 0, defaulting to Blue");
                                             black_info_r.clone()
@@ -346,7 +347,8 @@ impl Board {
                 !path_par.jump_path.contains(&(enemy_row as usize, enemy_col as usize)) &&
                 player.get_other().does_piece_match(self.board[enemy_row as usize][enemy_col as usize]) &&
                 (self.board[new_row as usize][new_col as usize] == BoardPiece::Empty ||
-                 path_par.jump_path.contains(&(new_row as usize, new_col as usize))
+                 path_par.jump_path.contains(&(new_row as usize, new_col as usize)) ||
+                 (path_par.start_loc.0 as i32 == new_row && path_par.start_loc.1 as i32 == new_col)
                 )
         };
 
