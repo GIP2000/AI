@@ -4,6 +4,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use colored::Colorize;
 
+pub type Cord = (usize, usize);
 
 #[derive(Debug, Copy, Clone, PartialEq,Eq)]
 pub enum BoardPiece {
@@ -77,7 +78,7 @@ pub enum Player {
 }
 
 impl Player {
-    fn get_other(&self) -> Self {
+    pub fn get_other(&self) -> Self {
         match self {
             Self::Black => Self::Red,
             Self::Red => Self::Black
@@ -110,9 +111,9 @@ impl Move {
 
 #[derive(Debug,Clone)]
 pub struct Moves {
-    jump_path: HashSet<(usize,usize)>,
-    start_loc: (usize,usize),
-    end_loc:(usize,usize)
+    jump_path: HashSet<Cord>,
+    start_loc: Cord,
+    end_loc:Cord
 }
 impl std::fmt::Display for Moves {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> Result<(),std::fmt::Error> {
@@ -127,7 +128,7 @@ impl std::fmt::Display for Moves {
 pub struct PlayerInfo {
     moves: Vec<Moves>,
     can_jump: bool,
-    piece_locs:HashSet<(usize,usize)>,
+    piece_locs:HashSet<Cord>,
     player: Player
 }
 
@@ -144,6 +145,10 @@ impl std::fmt::Display for PlayerInfo {
 impl PlayerInfo {
     pub fn get_moves(&self) -> &Vec<Moves> {
         &self.moves
+    }
+
+    pub fn get_can_jump(&self) -> bool {
+        return self.can_jump;
     }
 }
 
@@ -307,14 +312,14 @@ impl Board {
         obj
     }
 
-    pub fn get_pieces(&self) -> (Vec<(BoardPiece, (usize, usize))>, Vec<(BoardPiece, (usize, usize))>) {
+    pub fn get_pieces(&self) -> (Vec<(BoardPiece, Cord)>, Vec<(BoardPiece, Cord)>) {
         let cp = self.current_player.borrow();
         let op = match cp.player {
             Player::Red => self.black_info.borrow(),
             Player::Black => self.red_info.borrow()
         };
-        let mut mine: Vec<(BoardPiece, (usize, usize))> = Vec::new();
-        let mut other: Vec<(BoardPiece, (usize, usize))> = Vec::new();
+        let mut mine: Vec<(BoardPiece, Cord)> = Vec::new();
+        let mut other: Vec<(BoardPiece, Cord)> = Vec::new();
 
         for &(row,col) in cp.piece_locs.iter() {
             mine.push((self.board[row][col], (row, col)));

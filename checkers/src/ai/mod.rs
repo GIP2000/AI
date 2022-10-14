@@ -1,3 +1,4 @@
+mod heuristic;
 use crate::board::Board;
 use std::i32::MAX;
 use std::time::SystemTime;
@@ -88,7 +89,7 @@ fn is_terminal(state: &Board, depth: u32, time_limit: u128, now: &SystemTime, is
         return Result::Ok((MIN, ABResult::Finished(None)));
     }
     if depth == 0 {
-        return Result::Ok((h(&state, is_max), ABResult::DepthReached(None)));
+        return Result::Ok((heuristic::h(&state, is_max), ABResult::DepthReached(None)));
     }
     Result::Err(())
 
@@ -155,31 +156,4 @@ fn min_value(state: Board, depth: u32, alpha: i32, mut beta: i32, time_limit: u1
         }
     }
     return (v,mv);
-}
-
-fn h(state:&Board, is_max: bool) -> i32 {
-    let (my_pieces, other_pieces) = state.get_pieces();
-    let mut score = 0;
-    // Piece Worth
-    my_pieces.into_iter().for_each(|(piece,_)| {
-        if piece.is_king() {
-            score += 3;
-        } else {
-            score += 1;
-        }
-    });
-    other_pieces.into_iter().for_each(|(piece,_)| {
-        if piece.is_king() {
-            score -= 3;
-        } else {
-            score -= 1;
-        }
-    });
-    score *= 100; // Piece Worth Multiplier
-    // Inverter
-    if is_max {
-        score
-    } else {
-        -score
-    }
 }
