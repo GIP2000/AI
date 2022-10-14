@@ -1,6 +1,4 @@
 use crate::board::{Board, BoardPiece, Cord, Player};
-// use std::i32::MAX;
-// const MIN:i32 = -MAX;
 
 const N_PIECE_VAL: i32 = 100;
 const K_PIECE_VAL: i32 = 300;
