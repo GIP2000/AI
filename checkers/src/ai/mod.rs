@@ -81,12 +81,7 @@ fn is_terminal(state: &Board, depth: u32, time_limit: u128, now: &SystemTime, is
     if check_time_limit(time_limit, now){
         return Result::Ok((0, ABResult::TimeLimitExpired));
     }
-    let (is_game_over, is_tie_op, winner) = state.is_game_over();
-    if is_game_over {
-        let (is_tie, winner) = (is_tie_op.unwrap(), winner.unwrap());
-        if is_tie {
-            return Result::Ok((0, ABResult::Finished(None)));
-        }
+    if let Some(winner) = state.is_game_over() {
         if (winner == state.get_current_player() && is_max) || (winner != state.get_current_player() && !is_max) {
             return Result::Ok((MAX, ABResult::Finished(None)));
         }

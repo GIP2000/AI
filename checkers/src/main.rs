@@ -14,8 +14,8 @@ enum MoveFinder {
 }
 
 fn game_loop (b: &mut Board, red_mover: MoveFinder, black_mover: MoveFinder, time_limit: u32 ) {
-    let (mut is_game_over, mut is_tie, mut winner) = b.is_game_over();
-    while !is_game_over {
+    let mut is_game_over = b.is_game_over();
+    while let None = is_game_over {
         println!("{:}",b);
         b.print_moves();
         let mv = match b.get_current_player() {
@@ -32,14 +32,11 @@ fn game_loop (b: &mut Board, red_mover: MoveFinder, black_mover: MoveFinder, tim
             println!("Please Enter a Number in the range");
             println!("You Tried to do {:?}", m);
         }
-        (is_game_over, is_tie, winner) = b.is_game_over();
+        is_game_over = b.is_game_over();
     }
     println!("Game Over!");
     println!("{:}",b);
-    if is_tie.unwrap() {
-        println!("It was a Tie");
-    }
-    println!("Player {:?} wins",winner.unwrap())
+    println!("Player {:?} wins", is_game_over.expect("Unrechable"));
 }
 fn read_number(input: &str) -> u32 {
     println!("{:}",input);

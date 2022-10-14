@@ -154,7 +154,7 @@ pub struct Board {
     black_info: Rc<RefCell<PlayerInfo>>,
     red_info:Rc<RefCell<PlayerInfo>>,
     current_player: Rc<RefCell<PlayerInfo>>,
-    game_over: bool
+    game_over: Option<Player>
 }
 
 impl Clone for Board {
@@ -291,7 +291,7 @@ impl Board {
             } ,
             black_info: black_info_r,
             red_info: red_info_r ,
-            game_over: false
+            game_over: Option::None
         };
 
         for (row,row_arr) in obj.board.iter().enumerate() {
@@ -445,25 +445,8 @@ impl Board {
         }
     }
 
-    pub fn is_game_over(&self) -> (bool, Option<bool>, Option<Player>) {
-
-        if !self.game_over {
-            return (false, None, None);
-        }
-
-        let mut b = self.clone();
-        b.current_player = match self.current_player.borrow().player {
-            Player::Red => b.black_info.clone(),
-            Player::Black => b.red_info.clone()
-        };
-        b.calc_moves();
-        if b.current_player.borrow().moves.is_empty() {
-            return (true,Some(true),None);
-        }
-        let winner = b.current_player.borrow().player;
-
-        (true,Some(false),Some(winner))
-
+    pub fn is_game_over(&self) -> Option<Player> {
+        self.game_over.clone()
     }
 
     pub fn do_move(&mut self, mv: usize) -> bool{
@@ -498,6 +481,7 @@ impl Board {
         player_info.piece_locs.insert((end_row,end_col));
 
         let last_player = player_info.player;
+        let next_player = other_player.player;
 
         drop(player_info);
         drop(other_player);
@@ -509,7 +493,7 @@ impl Board {
 
         self.calc_moves();
         if self.current_player.borrow().moves.is_empty() {
-            self.game_over = true
+            self.game_over = Option::Some(next_player);
         }
         true
     }
