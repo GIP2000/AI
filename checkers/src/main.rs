@@ -38,6 +38,7 @@ fn game_loop (b: &mut Board, red_mover: MoveFinder, black_mover: MoveFinder, tim
     println!("{:}",b);
     println!("Player {:?} wins", is_game_over.expect("Unrechable"));
 }
+
 fn read_number(input: &str) -> u32 {
     println!("{:}",input);
     let mut s = String::new();
@@ -64,7 +65,6 @@ fn read_number(input: &str) -> u32 {
             }
         }
     }
-
 }
 
 fn read_user_input() -> usize {
@@ -151,11 +151,8 @@ fn get_init_board() -> Option<String> {
     }
 }
 
-fn main() {
-    let init = get_init_board();
-    let mut b = Board::new(&init);
-    let (red,black) = get_game_mode();
-    let time_limit = match init {
+fn get_time_limit(init: &Option<String> ) -> u32 {
+    match init {
         Some(fs) => {
             match fs.lines().nth(9) {
                 Some(s)=> {
@@ -169,12 +166,17 @@ fn main() {
                     read_number("Please enter a time limit in seconds")
                 }
             }
-            // read_number("Please enter a time limit in seconds")
         },
         None => {
             read_number("Please enter a time limit in seconds")
         }
-    };
-    // let time_limit = read_number("Please enter a time limit in seconds");
+    }
+}
+
+fn main() {
+    let init = get_init_board();
+    let mut b = Board::new(&init);
+    let (red,black) = get_game_mode();
+    let time_limit = get_time_limit(&init);
     game_loop(&mut b, red, black, time_limit);
 }
