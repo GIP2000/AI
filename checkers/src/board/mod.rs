@@ -120,10 +120,13 @@ pub struct PlayerInfo {
 
 impl std::fmt::Display for PlayerInfo {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-        let mut printable = String::from("");
-        for (i, mv) in self.moves.iter().enumerate() {
-            printable = format!("{}{}. {}\n", printable, i, mv);
-        }
+        let printable = self
+            .moves
+            .iter()
+            .enumerate()
+            .fold(String::from(""), |acc, (i, mv)| {
+                format!("{}{}. {}\n", acc, i, mv)
+            });
         write!(fmt, "{}", printable)
     }
 }
@@ -167,23 +170,29 @@ impl Clone for Board {
 
 impl std::fmt::Display for Board {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-        let mut printable: String = String::from("");
-        for row in self.board.iter() {
-            let mut row_str = String::from("|");
-            for el in row {
-                let c = match el {
-                    BoardPiece::Red => "O".red(),
-                    BoardPiece::KingRed => "K".red(),
-                    BoardPiece::Black => "O".blue(),
-                    BoardPiece::KingBlack => "K".blue(),
-                    BoardPiece::Empty => " ".underline(),
-                }
-                .underline();
-                row_str = format!("{}{}|", row_str, c);
-            }
-            printable = format!("{}\n{}", row_str, printable);
-        }
-        write!(fmt, "{}", printable)
+        write!(
+            fmt,
+            "{}",
+            self.board.iter().fold(String::from(""), |acc, row| {
+                format!(
+                    "{}\n{}",
+                    row.iter().fold(String::from("|"), |row_str, el| {
+                        format!(
+                            "{}{}|",
+                            row_str,
+                            match el {
+                                BoardPiece::Red => "O".red(),
+                                BoardPiece::KingRed => "K".red(),
+                                BoardPiece::Black => "O".blue(),
+                                BoardPiece::KingBlack => "K".blue(),
+                                BoardPiece::Empty => " ".underline(),
+                            }
+                        )
+                    }),
+                    acc
+                )
+            })
+        )
     }
 }
 
@@ -369,15 +378,29 @@ impl Board {
             Player::Red => self.black_info.borrow(),
             Player::Black => self.red_info.borrow(),
         };
-        let mut mine: Vec<(BoardPiece, Cord)> = Vec::new();
-        let mut other: Vec<(BoardPiece, Cord)> = Vec::new();
 
-        for &(row, col) in cp.piece_locs.iter() {
-            mine.push((self.board[row][col], (row, col)));
-        }
-        for &(row, col) in op.piece_locs.iter() {
-            other.push((self.board[row][col], (row, col)));
-        }
+        // let mut mine: Vec<(BoardPiece, Cord)> = Vec::new();
+        // let mut other: Vec<(BoardPiece, Cord)> = Vec::new();
+        //
+        // for &(row, col) in cp.piece_locs.iter() {
+        //     mine.push((self.board[row][col], (row, col)));
+        // }
+        //
+        // for &(row, col) in op.piece_locs.iter() {
+        //     other.push((self.board[row][col], (row, col)));
+        // }
+
+        let mine = cp
+            .piece_locs
+            .iter()
+            .map(|&(row, col)| (self.board[row][col], (row, col)))
+            .collect();
+
+        let other = op
+            .piece_locs
+            .iter()
+            .map(|&(row, col)| (self.board[row][col], (row, col)))
+            .collect();
 
         return (mine, other);
     }
