@@ -29,6 +29,7 @@ fn game_loop(b: &mut Board, red_mover: MoveFinder, black_mover: MoveFinder, time
                 MoveFinder::Automated(f) => f(b.clone(), time_limit),
             };
             if b.do_move(m) {
+                println!("Move {} was chosen", m);
                 break;
             }
             println!("Please Enter a Number in the range");

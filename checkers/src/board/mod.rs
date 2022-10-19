@@ -1,5 +1,6 @@
 mod err;
 use colored::Colorize;
+use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -92,7 +93,7 @@ impl Move {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Moves {
     jump_path: HashSet<Cord>,
     start_loc: Cord,
@@ -107,6 +108,16 @@ impl std::fmt::Display for Moves {
             "start: {},{} -> end: {},{} jumps: {:?}",
             start_row, start_col, end_row, end_col, self.jump_path
         )
+    }
+}
+
+impl Moves {
+    pub fn new_empty() -> Self {
+        Moves {
+            start_loc: (9, 9),
+            end_loc: (9, 9),
+            jump_path: HashSet::new(),
+        }
     }
 }
 

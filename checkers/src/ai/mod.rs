@@ -1,7 +1,11 @@
 mod heuristic;
-use crate::board::Board;
+mod visualize_tree_ai;
+use crate::board::{Board, Moves};
+use std::fs::OpenOptions;
 use std::i32::MAX;
+use std::io::Write;
 use std::time::SystemTime;
+use visualize_tree_ai::{RTTree, Tree};
 const MIN: i32 = -MAX;
 
 #[derive(Clone, Copy)]
@@ -38,14 +42,48 @@ pub fn predict_move(b: Board, time_limit: u32) -> usize {
     drop(player_info);
     let mut d = 1;
     let mut mv = 0;
+
+    // this creates a tree in debug mode
+    // This match statment should always be compiled out
+    let mut tree: Option<Tree<RTTree>> = match cfg!(debug_assertions) {
+        true => Option::Some(Tree::new(RTTree {
+            h_val: 0,
+            mv: Moves::new_empty(),
+            is_max: true,
+        })),
+        false => Option::None,
+    };
     println!("Starting AB/P");
     let now = SystemTime::now();
     let time_limit = ((time_limit as u128) * 1000) - 100;
     loop {
-        let (_, v) = max_value(b.clone(), d, MIN, MAX, time_limit, &now);
+        let mut inner_tree: Option<Tree<RTTree>> = match cfg!(debug_assertions) {
+            true => Option::Some(Tree::new(RTTree {
+                h_val: 0,
+                mv: Moves::new_empty(),
+                is_max: true,
+            })),
+            false => Option::None,
+        };
+        let (_, v) = max_value(b.clone(), d, MIN, MAX, time_limit, &now, &mut inner_tree);
         match v {
             ABResult::Finished(value) => {
                 println!("Found Bottom Depth: {:?}", d);
+                if cfg!(debug_assertions) {
+                    let mut f = OpenOptions::new()
+                        .create(true)
+                        .truncate(true)
+                        .write(true)
+                        .open("tree.json")
+                        .expect("FS Error");
+
+                    write!(
+                        f,
+                        "{}",
+                        serde_json::to_string(&(inner_tree.expect("No Tree"))).unwrap()
+                    )
+                    .expect("Error Writting");
+                }
                 return value.expect("Err: Finished without value");
             }
             ABResult::TimeLimitExpired => {
@@ -54,6 +92,21 @@ pub fn predict_move(b: Board, time_limit: u32) -> usize {
                     d,
                     now.elapsed().expect("Err: Invalid Sys time").as_millis()
                 );
+                if cfg!(debug_assertions) {
+                    let mut f = OpenOptions::new()
+                        .create(true)
+                        .truncate(true)
+                        .write(true)
+                        .open("tree.json")
+                        .expect("FS Error");
+
+                    write!(
+                        f,
+                        "{}",
+                        serde_json::to_string(&(tree.expect("No Tree"))).unwrap()
+                    )
+                    .expect("Error Writting");
+                }
                 return mv;
             }
             ABResult::DepthReached(value) => {
@@ -63,6 +116,9 @@ pub fn predict_move(b: Board, time_limit: u32) -> usize {
                     now.elapsed().expect("Err: Invalid Sys time").as_millis()
                 );
                 mv = value.expect("Err: No DepthReached without value");
+                if cfg!(debug_assertions) {
+                    tree = inner_tree;
+                }
             }
             ABResult::Inital => {
                 if check_time_limit(time_limit, &now) {
@@ -71,6 +127,17 @@ pub fn predict_move(b: Board, time_limit: u32) -> usize {
                         d,
                         now.elapsed().expect("Err: Invalid Sys time").as_millis()
                     );
+                    if cfg!(debug_assertions) {
+                        let mut f = OpenOptions::new()
+                            .create(true)
+                            .truncate(true)
+                            .write(true)
+                            .open("tree.json")
+                            .expect("FS Error");
+
+                        write!(f, "{}", serde_json::to_string(&inner_tree).unwrap())
+                            .expect("Error Writting");
+                    }
                     return mv;
                 }
                 println!(
@@ -78,6 +145,9 @@ pub fn predict_move(b: Board, time_limit: u32) -> usize {
                     d,
                     now.elapsed().expect("Err: Invalid Sys time").as_millis()
                 );
+                if cfg!(debug_assertions) {
+                    tree = inner_tree;
+                }
                 mv = 0;
             }
         };
@@ -120,6 +190,7 @@ fn max_value(
     beta: i32,
     time_limit: u128,
     now: &SystemTime,
+    tree: &mut Option<Tree<RTTree>>,
 ) -> (i32, ABResult) {
     match is_terminal(&state, depth, time_limit, now, true) {
         Result::Ok(r) => return r,
@@ -129,9 +200,29 @@ fn max_value(
     let mut v = MIN;
     let mut mv = ABResult::Inital;
     for p_mv in 0..state.get_player_info().borrow().get_moves().len() {
+        let mut inner_tree: Option<Tree<RTTree>> = match cfg!(debug_assertions) {
+            true => Option::Some(Tree::new(RTTree {
+                h_val: beta,
+                mv: state.get_player_info().borrow().get_moves()[p_mv].clone(),
+                is_max: true,
+            })),
+            false => Option::None,
+        };
         let mut new_state = state.clone();
         new_state.do_move(p_mv);
-        let (v2, t_move) = min_value(new_state, depth - 1, alpha, beta, time_limit, now);
+        let (v2, t_move) = min_value(
+            new_state,
+            depth - 1,
+            alpha,
+            beta,
+            time_limit,
+            now,
+            &mut inner_tree,
+        );
+        if cfg!(debug_assertions) {
+            inner_tree.as_mut().unwrap().val.h_val = v2;
+            tree.as_mut().unwrap().push(inner_tree.unwrap());
+        }
         // should I update stuff
         if v2 > v {
             v = v2;
@@ -151,6 +242,7 @@ fn max_value(
     }
     return (v, mv);
 }
+
 fn min_value(
     state: Board,
     depth: u32,
@@ -158,6 +250,7 @@ fn min_value(
     mut beta: i32,
     time_limit: u128,
     now: &SystemTime,
+    tree: &mut Option<Tree<RTTree>>,
 ) -> (i32, ABResult) {
     match is_terminal(&state, depth, time_limit, now, false) {
         Result::Ok(r) => return r,
@@ -167,9 +260,31 @@ fn min_value(
     let mut v = MAX;
     let mut mv = ABResult::Inital;
     for p_mv in 0..state.get_player_info().borrow().get_moves().len() {
+        let mut inner_tree: Option<Tree<RTTree>> = match cfg!(debug_assertions) {
+            true => Option::Some(Tree::new(RTTree {
+                h_val: beta,
+                mv: state.get_player_info().borrow().get_moves()[p_mv].clone(),
+                is_max: true,
+            })),
+            false => Option::None,
+        };
         let mut new_state = state.clone();
         new_state.do_move(p_mv);
-        let (v2, t_move) = max_value(new_state, depth - 1, alpha, beta, time_limit, now);
+        let (v2, t_move) = max_value(
+            new_state,
+            depth - 1,
+            alpha,
+            beta,
+            time_limit,
+            now,
+            &mut inner_tree,
+        );
+
+        if cfg!(debug_assertions) {
+            inner_tree.as_mut().unwrap().val.h_val = v2;
+            tree.as_mut().unwrap().push(inner_tree.unwrap());
+        }
+
         if v2 < v {
             v = v2;
             mv = t_move.set(p_mv);
