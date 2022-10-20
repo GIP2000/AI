@@ -8,6 +8,7 @@ pub struct RTTree {
     pub beta: i32,
     pub mv: Moves,
     pub is_max: bool,
+    pub pruned: bool,
 }
 
 #[derive(Serialize, Deserialize)]

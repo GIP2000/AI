@@ -9,5 +9,6 @@ export type RTTree = {
     beta: number,
     mv: any,
     is_max: boolean,
+    pruned: boolean,
 }
 

@@ -21,13 +21,15 @@ pub fn h(state: &Board, is_max: bool) -> i32 {
     let per_piece = |pt: &PieceType, plyr: Player| {
         let (bp, bc) = pt;
         let mut current_score = piece_type_value(bp);
-        current_score += depth_distance(
-            bc,
-            match plyr {
-                Player::Red => 0,
-                Player::Black => 7,
-            },
-        );
+        if !bp.is_king() {
+            current_score += depth_distance(
+                bc,
+                match plyr {
+                    Player::Red => 0,
+                    Player::Black => 7,
+                },
+            );
+        }
         current_score += in_center(bc);
         current_score += in_goal(
             bc,

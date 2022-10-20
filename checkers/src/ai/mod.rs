@@ -52,6 +52,7 @@ pub fn predict_move(b: Board, time_limit: u32) -> usize {
             is_max: true,
             alpha: MIN,
             beta: MAX,
+            pruned: false,
         })),
         false => Option::None,
     };
@@ -66,6 +67,7 @@ pub fn predict_move(b: Board, time_limit: u32) -> usize {
                 is_max: true,
                 alpha: MIN,
                 beta: MAX,
+                pruned: false,
             })),
             false => Option::None,
         };
@@ -73,7 +75,8 @@ pub fn predict_move(b: Board, time_limit: u32) -> usize {
         match v {
             ABResult::Finished(value) => {
                 println!("Found Bottom Depth: {:?}", d);
-                if cfg!(debug_assertions) {
+                #[cfg(debug_assertions)]
+                {
                     let mut f = OpenOptions::new()
                         .create(true)
                         .truncate(true)
@@ -96,7 +99,8 @@ pub fn predict_move(b: Board, time_limit: u32) -> usize {
                     d,
                     now.elapsed().expect("Err: Invalid Sys time").as_millis()
                 );
-                if cfg!(debug_assertions) {
+                #[cfg(debug_assertions)]
+                {
                     let mut f = OpenOptions::new()
                         .create(true)
                         .truncate(true)
@@ -120,7 +124,8 @@ pub fn predict_move(b: Board, time_limit: u32) -> usize {
                     now.elapsed().expect("Err: Invalid Sys time").as_millis()
                 );
                 mv = value.expect("Err: No DepthReached without value");
-                if cfg!(debug_assertions) {
+                #[cfg(debug_assertions)]
+                {
                     tree = inner_tree;
                 }
             }
@@ -131,7 +136,8 @@ pub fn predict_move(b: Board, time_limit: u32) -> usize {
                         d,
                         now.elapsed().expect("Err: Invalid Sys time").as_millis()
                     );
-                    if cfg!(debug_assertions) {
+                    #[cfg(debug_assertions)]
+                    {
                         let mut f = OpenOptions::new()
                             .create(true)
                             .truncate(true)
@@ -149,7 +155,8 @@ pub fn predict_move(b: Board, time_limit: u32) -> usize {
                     d,
                     now.elapsed().expect("Err: Invalid Sys time").as_millis()
                 );
-                if cfg!(debug_assertions) {
+                #[cfg(debug_assertions)]
+                {
                     tree = inner_tree;
                 }
                 mv = 0;
@@ -211,6 +218,7 @@ fn max_value(
                 is_max: true,
                 alpha,
                 beta,
+                pruned: false,
             })),
             false => Option::None,
         };
@@ -234,7 +242,8 @@ fn max_value(
             }
         }
 
-        if cfg!(debug_assertions) {
+        #[cfg(debug_assertions)]
+        {
             inner_tree.as_mut().unwrap().val.h_val = v2;
             inner_tree.as_mut().unwrap().val.alpha = alpha;
             inner_tree.as_mut().unwrap().val.beta = beta;
@@ -246,6 +255,19 @@ fn max_value(
         }
         // should I prune
         if v >= beta {
+            #[cfg(debug_assertions)]
+            {
+                for pruned_mv in p_mv..state.get_player_info().borrow().get_moves().len() {
+                    tree.as_mut().unwrap().push(Tree::new(RTTree {
+                        alpha,
+                        beta,
+                        h_val: 0,
+                        mv: state.get_player_info().borrow().get_moves()[pruned_mv].clone(),
+                        is_max: true,
+                        pruned: true,
+                    }));
+                }
+            }
             return (v, mv);
         }
     }
@@ -276,6 +298,7 @@ fn min_value(
                 is_max: false,
                 alpha,
                 beta,
+                pruned: false,
             })),
             false => Option::None,
         };
@@ -299,7 +322,8 @@ fn min_value(
             }
         }
 
-        if cfg!(debug_assertions) {
+        #[cfg(debug_assertions)]
+        {
             inner_tree.as_mut().unwrap().val.h_val = v2;
             inner_tree.as_mut().unwrap().val.alpha = alpha;
             inner_tree.as_mut().unwrap().val.beta = beta;
@@ -312,6 +336,19 @@ fn min_value(
         }
 
         if v <= alpha {
+            #[cfg(debug_assertions)]
+            {
+                for pruned_mv in p_mv..state.get_player_info().borrow().get_moves().len() {
+                    tree.as_mut().unwrap().push(Tree::new(RTTree {
+                        alpha,
+                        beta,
+                        h_val: 0,
+                        mv: state.get_player_info().borrow().get_moves()[pruned_mv].clone(),
+                        is_max: false,
+                        pruned: true,
+                    }));
+                }
+            }
             return (v, mv);
         }
     }
