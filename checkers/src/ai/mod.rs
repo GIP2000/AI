@@ -196,9 +196,9 @@ fn is_terminal(
         if (winner == state.get_current_player() && is_max)
             || (winner != state.get_current_player() && !is_max)
         {
-            return Result::Ok((MAX, ABResult::Finished(None)));
+            return Result::Ok((MAX - depth as i32, ABResult::Finished(None)));
         }
-        return Result::Ok((MIN, ABResult::Finished(None)));
+        return Result::Ok((MIN + depth as i32, ABResult::Finished(None)));
     }
     if depth == 0 {
         return Result::Ok((h_s.h(&state, is_max), ABResult::DepthReached(None)));
