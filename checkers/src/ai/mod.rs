@@ -1,6 +1,7 @@
-mod heuristic;
+pub mod heuristic;
 mod visualize_tree_ai;
 use crate::board::{Board, Moves};
+use heuristic::Heuristic;
 use std::fs::OpenOptions;
 use std::i32::MAX;
 use std::io::Write;
@@ -31,7 +32,7 @@ impl ABResult {
     }
 }
 
-pub fn predict_move(b: Board, time_limit: u32) -> usize {
+pub fn predict_move(b: Board, time_limit: u32, h_s_param: Option<Heuristic>) -> usize {
     let player_info_rc = b.get_player_info();
     let player_info = player_info_rc.borrow();
 
@@ -57,6 +58,7 @@ pub fn predict_move(b: Board, time_limit: u32) -> usize {
         false => Option::None,
     };
     println!("Starting AB/P");
+    let h_s = h_s_param.unwrap_or_else(|| Heuristic::default_new());
     let now = SystemTime::now();
     let time_limit = ((time_limit as u128) * 1000) - 100;
     loop {
@@ -71,7 +73,16 @@ pub fn predict_move(b: Board, time_limit: u32) -> usize {
             })),
             false => Option::None,
         };
-        let (_, v) = max_value(b.clone(), d, MIN, MAX, time_limit, &now, &mut inner_tree);
+        let (_, v) = max_value(
+            b.clone(),
+            d,
+            MIN,
+            MAX,
+            time_limit,
+            &now,
+            &h_s,
+            &mut inner_tree,
+        );
         match v {
             ABResult::Finished(value) => {
                 println!("Found Bottom Depth: {:?}", d);
@@ -176,6 +187,7 @@ fn is_terminal(
     time_limit: u128,
     now: &SystemTime,
     is_max: bool,
+    h_s: &Heuristic,
 ) -> Result<(i32, ABResult), ()> {
     if check_time_limit(time_limit, now) {
         return Result::Ok((0, ABResult::TimeLimitExpired));
@@ -189,7 +201,7 @@ fn is_terminal(
         return Result::Ok((MIN, ABResult::Finished(None)));
     }
     if depth == 0 {
-        return Result::Ok((heuristic::h(&state, is_max), ABResult::DepthReached(None)));
+        return Result::Ok((h_s.h(&state, is_max), ABResult::DepthReached(None)));
     }
     Result::Err(())
 }
@@ -201,9 +213,10 @@ fn max_value(
     beta: i32,
     time_limit: u128,
     now: &SystemTime,
+    h_s: &Heuristic,
     tree: &mut Option<Tree<RTTree>>,
 ) -> (i32, ABResult) {
-    match is_terminal(&state, depth, time_limit, now, true) {
+    match is_terminal(&state, depth, time_limit, now, true, h_s) {
         Result::Ok(r) => return r,
         Result::Err(_) => {}
     };
@@ -231,6 +244,7 @@ fn max_value(
             beta,
             time_limit,
             now,
+            h_s,
             &mut inner_tree,
         );
         // should I update stuff
@@ -281,9 +295,10 @@ fn min_value(
     mut beta: i32,
     time_limit: u128,
     now: &SystemTime,
+    h_s: &Heuristic,
     tree: &mut Option<Tree<RTTree>>,
 ) -> (i32, ABResult) {
-    match is_terminal(&state, depth, time_limit, now, false) {
+    match is_terminal(&state, depth, time_limit, now, false, h_s) {
         Result::Ok(r) => return r,
         Result::Err(_) => {}
     };
@@ -311,6 +326,7 @@ fn min_value(
             beta,
             time_limit,
             now,
+            h_s,
             &mut inner_tree,
         );
 

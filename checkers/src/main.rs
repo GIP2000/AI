@@ -1,11 +1,11 @@
 mod ai;
 mod board;
-use ai::predict_move;
+use ai::{heuristic::Heuristic, predict_move};
 use board::{Board, Player};
 use std::fs::read_to_string;
 use std::io::stdin;
 
-type AutomatedMoveFinder = fn(Board, time_in_sec: u32) -> usize;
+type AutomatedMoveFinder = fn(Board, time_in_sec: u32, Option<Heuristic>) -> usize;
 type ManualMoveFinder = fn() -> usize;
 
 enum MoveFinder {
@@ -26,7 +26,7 @@ fn game_loop(b: &mut Board, red_mover: MoveFinder, black_mover: MoveFinder, time
         loop {
             let m = match mv {
                 MoveFinder::Manual(f) => f(),
-                MoveFinder::Automated(f) => f(b.clone(), time_limit),
+                MoveFinder::Automated(f) => f(b.clone(), time_limit, None),
             };
             if b.do_move(m) {
                 println!("Move {} was chosen", m);
