@@ -639,7 +639,7 @@ impl Board {
         player_info.piece_locs.insert((end_row, end_col));
 
         let last_player = player_info.player;
-        let next_player = other_player.player;
+        // let next_player = other_player.player;
 
         drop(player_info);
         drop(other_player);
@@ -651,7 +651,7 @@ impl Board {
 
         self.calc_moves();
         if self.current_player.borrow().moves.is_empty() {
-            self.game_over = Option::Some(next_player);
+            self.game_over = Option::Some(last_player);
         }
         true
     }
