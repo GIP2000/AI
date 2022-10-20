@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 pub struct RTTree {
     pub h_val: i32,
+    pub alpha: i32,
+    pub beta: i32,
     pub mv: Moves,
     pub is_max: bool,
 }

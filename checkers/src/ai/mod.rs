@@ -50,6 +50,8 @@ pub fn predict_move(b: Board, time_limit: u32) -> usize {
             h_val: 0,
             mv: Moves::new_empty(),
             is_max: true,
+            alpha: MIN,
+            beta: MAX,
         })),
         false => Option::None,
     };
@@ -62,6 +64,8 @@ pub fn predict_move(b: Board, time_limit: u32) -> usize {
                 h_val: 0,
                 mv: Moves::new_empty(),
                 is_max: true,
+                alpha: MIN,
+                beta: MAX,
             })),
             false => Option::None,
         };
@@ -202,9 +206,11 @@ fn max_value(
     for p_mv in 0..state.get_player_info().borrow().get_moves().len() {
         let mut inner_tree: Option<Tree<RTTree>> = match cfg!(debug_assertions) {
             true => Option::Some(Tree::new(RTTree {
-                h_val: beta,
+                h_val: 0,
                 mv: state.get_player_info().borrow().get_moves()[p_mv].clone(),
                 is_max: true,
+                alpha,
+                beta,
             })),
             false => Option::None,
         };
@@ -219,10 +225,6 @@ fn max_value(
             now,
             &mut inner_tree,
         );
-        if cfg!(debug_assertions) {
-            inner_tree.as_mut().unwrap().val.h_val = v2;
-            tree.as_mut().unwrap().push(inner_tree.unwrap());
-        }
         // should I update stuff
         if v2 > v {
             v = v2;
@@ -230,6 +232,13 @@ fn max_value(
             if v > alpha {
                 alpha = v;
             }
+        }
+
+        if cfg!(debug_assertions) {
+            inner_tree.as_mut().unwrap().val.h_val = v2;
+            inner_tree.as_mut().unwrap().val.alpha = alpha;
+            inner_tree.as_mut().unwrap().val.beta = beta;
+            tree.as_mut().unwrap().push(inner_tree.unwrap());
         }
         // time limit expired get out
         if let ABResult::TimeLimitExpired = t_move {
@@ -262,9 +271,11 @@ fn min_value(
     for p_mv in 0..state.get_player_info().borrow().get_moves().len() {
         let mut inner_tree: Option<Tree<RTTree>> = match cfg!(debug_assertions) {
             true => Option::Some(Tree::new(RTTree {
-                h_val: beta,
+                h_val: 0,
                 mv: state.get_player_info().borrow().get_moves()[p_mv].clone(),
-                is_max: true,
+                is_max: false,
+                alpha,
+                beta,
             })),
             false => Option::None,
         };
@@ -280,11 +291,6 @@ fn min_value(
             &mut inner_tree,
         );
 
-        if cfg!(debug_assertions) {
-            inner_tree.as_mut().unwrap().val.h_val = v2;
-            tree.as_mut().unwrap().push(inner_tree.unwrap());
-        }
-
         if v2 < v {
             v = v2;
             mv = t_move.set(p_mv);
@@ -292,6 +298,14 @@ fn min_value(
                 beta = v
             }
         }
+
+        if cfg!(debug_assertions) {
+            inner_tree.as_mut().unwrap().val.h_val = v2;
+            inner_tree.as_mut().unwrap().val.alpha = alpha;
+            inner_tree.as_mut().unwrap().val.beta = beta;
+            tree.as_mut().unwrap().push(inner_tree.unwrap());
+        }
+
         // time limit expired get out
         if let ABResult::TimeLimitExpired = t_move {
             return (v, t_move);
