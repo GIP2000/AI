@@ -1,4 +1,3 @@
-mod err;
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
