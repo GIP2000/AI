@@ -183,25 +183,34 @@ impl std::fmt::Display for Board {
         write!(
             fmt,
             "{}",
-            self.board.iter().fold(String::from(""), |acc, row| {
-                format!(
-                    "{}\n{}",
-                    row.iter().fold(String::from("|"), |row_str, el| {
-                        format!(
-                            "{}{}|",
-                            row_str,
-                            match el {
-                                BoardPiece::Red => "O".red(),
-                                BoardPiece::KingRed => "K".red(),
-                                BoardPiece::Black => "O".blue(),
-                                BoardPiece::KingBlack => "K".blue(),
-                                BoardPiece::Empty => " ".underline(),
-                            }
-                        )
-                    }),
-                    acc
-                )
-            })
+            self.board
+                .iter()
+                .enumerate()
+                .fold(String::from(""), |acc, (i, row)| {
+                    format!(
+                        "{}\n{}",
+                        row.iter()
+                            .enumerate()
+                            .fold(String::from(""), |row_str, (j, el)| {
+                                let piece = match el {
+                                    BoardPiece::Red => "O".red(),
+                                    BoardPiece::KingRed => "K".red(),
+                                    BoardPiece::Black => "O".black(),
+                                    BoardPiece::KingBlack => "K".black(),
+                                    BoardPiece::Empty => " ".underline(),
+                                };
+                                format!(
+                                    "{}{}",
+                                    row_str,
+                                    match i % 2 == j % 2 {
+                                        true => piece.on_green(),
+                                        false => piece.on_magenta(),
+                                    }
+                                )
+                            }),
+                        acc
+                    )
+                })
         )
     }
 }
