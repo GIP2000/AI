@@ -52,7 +52,7 @@ impl Heuristic {
     pub fn default_new() -> Self {
         Self {
             n_piece_val: 100,
-            k_piece_val: 300,
+            k_piece_val: 150,
             d_hr_mul: 5,
             true_center: 50,
             off_center: 25,
