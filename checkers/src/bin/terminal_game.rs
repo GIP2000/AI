@@ -1,7 +1,5 @@
-mod ai;
-mod board;
-use ai::{heuristic::Heuristic, predict_move};
-use board::{Board, Player};
+use checkers::ai::{heuristic::Heuristic, predict_move};
+use checkers::board::{Board, Player};
 use std::fs::read_to_string;
 use std::io::stdin;
 
