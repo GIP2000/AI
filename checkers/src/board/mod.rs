@@ -182,13 +182,14 @@ impl std::fmt::Display for Board {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         write!(
             fmt,
-            "{}",
+            "   01234567\n{}",
             self.board
                 .iter()
                 .enumerate()
                 .fold(String::from(""), |acc, (i, row)| {
                     format!(
-                        "{}\n{}",
+                        "{}. {}\n{}",
+                        i,
                         row.iter()
                             .enumerate()
                             .fold(String::from(""), |row_str, (j, el)| {
