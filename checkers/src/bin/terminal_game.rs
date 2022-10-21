@@ -162,9 +162,21 @@ fn get_time_limit(init: &Option<String>) -> u32 {
     }
 }
 
+fn offer_swap(b: &mut Board) {
+    if confirm(
+        &format!(
+            "Current Player is {:?} would you like to swap (y/n)",
+            b.get_current_player()
+        )[..],
+    ) {
+        b.swap_current_player();
+    }
+}
+
 fn main() {
     let init = get_init_board();
     let mut b = Board::new(&init);
+    offer_swap(&mut b);
     let (red, black) = get_game_mode();
     let time_limit = get_time_limit(&init);
     game_loop(&mut b, red, black, time_limit);

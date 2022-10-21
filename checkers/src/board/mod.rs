@@ -391,6 +391,15 @@ impl Board {
         obj
     }
 
+    pub fn swap_current_player(&mut self) {
+        let player = self.current_player.borrow().player;
+        match player {
+            Player::Red => self.current_player = self.black_info.clone(),
+            Player::Black => self.current_player = self.red_info.clone(),
+        };
+        self.calc_moves();
+    }
+
     pub fn get_pieces(&self) -> (Vec<(BoardPiece, Cord)>, Vec<(BoardPiece, Cord)>) {
         let cp = self.current_player.borrow();
         let op = match cp.player {
