@@ -1,12 +1,18 @@
 use checkers::ai::{heuristic::Heuristic, predict_move};
 use checkers::board::{Board, Player};
+use std::sync::{Arc, RwLock};
 use std::thread;
 
 type GameResult = (u32, Heuristic);
 
 const TIME_LIMIT: u32 = 5;
 
-fn game_loop(red_h: Heuristic, black_h: Heuristic, child_num: u32) -> GameResult {
+fn game_loop(
+    red_h: Heuristic,
+    black_h: Heuristic,
+    child_num: u32,
+    time_to_beat: &Arc<RwLock<u32>>,
+) -> GameResult {
     let mut b = Board::new(&Option::None);
     if child_num % 2 == 0 {
         b.swap_current_player();
@@ -40,16 +46,23 @@ fn game_loop(red_h: Heuristic, black_h: Heuristic, child_num: u32) -> GameResult
         } else {
             time_since_last_jump += 1;
         }
-
-        if time_since_last_jump > 50 {
-            break;
+        {
+            let t = time_to_beat.read().expect("Poisned Lock");
+            if (red_counter + black_counter) % 60 == 0 {
+                println!("t = {}", *t);
+            }
+            if time_since_last_jump > 50 || (std::cmp::max(black_counter, red_counter) > *t) {
+                break;
+            }
         }
+
         b.do_move(m);
+
         is_game_over = b.is_game_over();
     }
 
     println!(
-        "Game {} finided in ~{} moves. winner? {:?}",
+        "Game {} finished in ~{} moves. winner? {:?}",
         child_num,
         std::cmp::max(red_counter, black_counter),
         is_game_over
@@ -71,14 +84,23 @@ fn game_loop(red_h: Heuristic, black_h: Heuristic, child_num: u32) -> GameResult
 
 fn run_generation(prev: Heuristic, siblings: u32, generation: u32) -> GameResult {
     println!("Initalizing generation: {}\n h(n) = {:?}", generation, prev);
+    let time_to_beat_base = Arc::new(RwLock::new(std::u32::MAX));
     let mut children = vec![];
     for i in 0..siblings {
         let base = prev.clone();
+        let time_to_beat = Arc::clone(&time_to_beat_base);
         children.push(thread::spawn(move || {
             let black_h = base.mutate();
             let red_h = base.clone();
             println!("Starting game {}", i);
-            return game_loop(red_h, black_h, i);
+            let res = game_loop(red_h, black_h, i, &time_to_beat);
+            {
+                let mut t = time_to_beat.write().expect("Posined Lock");
+                if *t > res.0 {
+                    *t = res.0;
+                }
+            }
+            return res;
         }));
     }
 
