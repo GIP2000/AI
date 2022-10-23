@@ -49,9 +49,10 @@ fn game_loop(red_h: Heuristic, black_h: Heuristic, child_num: u32) -> GameResult
     }
 
     println!(
-        "Game {} finided in ~{} moves",
+        "Game {} finided in ~{} moves. winner? {:?}",
         child_num,
-        std::cmp::max(red_counter, black_counter)
+        std::cmp::max(red_counter, black_counter),
+        is_game_over
     );
 
     return match is_game_over.unwrap_or_else(|| {
