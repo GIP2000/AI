@@ -39,6 +39,8 @@ fn game_loop(red_h: Heuristic, black_h: Heuristic, child_num: u32) -> GameResult
         is_game_over = b.is_game_over();
     }
     return match is_game_over.unwrap_or_else(|| {
+        red_counter = std::u32::MAX;
+        black_counter = std::u32::MAX;
         let (my_pieces, other_pieces) = b.get_pieces();
         if my_pieces.len() > other_pieces.len() {
             return b.get_current_player();
@@ -50,7 +52,8 @@ fn game_loop(red_h: Heuristic, black_h: Heuristic, child_num: u32) -> GameResult
     };
 }
 
-fn run_generation(prev: Heuristic, siblings: u32) -> GameResult {
+fn run_generation(prev: Heuristic, siblings: u32, generation: u32) -> GameResult {
+    println!("Initalizing generation: {}\n h(n) = {:?}", generation, prev);
     let mut children = vec![];
     for i in 0..siblings {
         let base = prev.clone();
@@ -75,6 +78,13 @@ fn run_generation(prev: Heuristic, siblings: u32) -> GameResult {
 }
 
 fn main() {
-    let (c, h) = run_generation(Heuristic::default_new(), 5);
-    println!("Best so far is {} with h {:?}", c, h);
+    let mut h = Heuristic::default_new();
+    for i in 0..10 {
+        let (c, nh) = run_generation(h, 5, i);
+        println!(
+            "Generation {} ended selected new h: {:?} with c {}",
+            i, nh, c
+        );
+        h = nh;
+    }
 }
