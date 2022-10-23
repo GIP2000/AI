@@ -65,18 +65,28 @@ impl Heuristic {
         }
     }
 
-    pub fn mutate(&self, max_value: i32) -> Self {
+    pub fn mutate(&self) -> Self {
         let mut rng = rand::thread_rng();
+        let rng_n_piece_val = std::cmp::max(1, self.n_piece_val / 10);
+        let rng_k_piece_val = std::cmp::max(1, self.k_piece_val / 10);
+        let rng_d_hr_mul = std::cmp::max(1, self.d_hr_mul / 10);
+        let rng_true_center = std::cmp::max(1, self.true_center / 10);
+        let rng_off_center = std::cmp::max(1, self.off_center / 10);
+        let rng_goalies_center = std::cmp::max(1, self.goalies_center / 10);
+        let rng_goalies_side = std::cmp::max(1, self.goalies_side / 10);
+        let rng_per_move_val = std::cmp::max(1, self.per_move_val / 10);
+        let rng_per_jump_move_val = std::cmp::max(1, self.per_jump_move_val / 10);
+
         Self::new(
-            self.n_piece_val + rng.gen_range(-max_value..max_value),
-            self.k_piece_val + rng.gen_range(-max_value..max_value),
-            self.d_hr_mul + rng.gen_range(-max_value..max_value),
-            self.true_center + rng.gen_range(-max_value..max_value),
-            self.off_center + rng.gen_range(-max_value..max_value),
-            self.goalies_center + rng.gen_range(-max_value..max_value),
-            self.goalies_side + rng.gen_range(-max_value..max_value),
-            self.per_move_val + rng.gen_range(-max_value..max_value),
-            self.per_jump_move_val + rng.gen_range(-max_value..max_value),
+            self.n_piece_val + rng.gen_range(-rng_n_piece_val..rng_n_piece_val),
+            self.k_piece_val + rng.gen_range(-rng_k_piece_val..rng_k_piece_val),
+            self.d_hr_mul + rng.gen_range(-rng_d_hr_mul..rng_d_hr_mul),
+            self.true_center + rng.gen_range(-rng_true_center..rng_true_center),
+            self.off_center + rng.gen_range(-rng_off_center..rng_off_center),
+            self.goalies_center + rng.gen_range(-rng_goalies_center..rng_goalies_center),
+            self.goalies_side + rng.gen_range(-rng_goalies_side..rng_goalies_side),
+            self.per_move_val + rng.gen_range(-rng_per_move_val..rng_per_move_val),
+            self.per_jump_move_val + rng.gen_range(-rng_per_jump_move_val..rng_per_jump_move_val),
         )
     }
 

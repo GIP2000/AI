@@ -46,7 +46,7 @@ pub fn predict_move(b: Board, time_limit: u32, h_s_param: Option<Heuristic>) -> 
 
     // this creates a tree in debug mode
     // This match statment should always be compiled out
-    let mut tree: Option<Tree<RTTree>> = match cfg!(debug_assertions) {
+    let mut tree: Option<Tree<RTTree>> = match cfg!(feature = "tree_debug") {
         true => Option::Some(Tree::new(RTTree {
             h_val: 0,
             mv: Moves::new_empty(),
@@ -65,7 +65,7 @@ pub fn predict_move(b: Board, time_limit: u32, h_s_param: Option<Heuristic>) -> 
     let now = SystemTime::now();
     let time_limit = ((time_limit as u128) * 1000) - 100;
     loop {
-        let mut inner_tree: Option<Tree<RTTree>> = match cfg!(debug_assertions) {
+        let mut inner_tree: Option<Tree<RTTree>> = match cfg!(feature = "tree_debug") {
             true => Option::Some(Tree::new(RTTree {
                 h_val: 0,
                 mv: Moves::new_empty(),
@@ -92,7 +92,7 @@ pub fn predict_move(b: Board, time_limit: u32, h_s_param: Option<Heuristic>) -> 
                 {
                     println!("Found Bottom Depth: {:?}", d);
                 }
-                #[cfg(debug_assertions)]
+                #[cfg(feature = "tree_debug")]
                 {
                     let mut f = OpenOptions::new()
                         .create(true)
@@ -119,7 +119,7 @@ pub fn predict_move(b: Board, time_limit: u32, h_s_param: Option<Heuristic>) -> 
                         now.elapsed().expect("Err: Invalid Sys time").as_millis()
                     );
                 }
-                #[cfg(debug_assertions)]
+                #[cfg(feature = "tree_debug")]
                 {
                     let mut f = OpenOptions::new()
                         .create(true)
@@ -147,7 +147,7 @@ pub fn predict_move(b: Board, time_limit: u32, h_s_param: Option<Heuristic>) -> 
                     );
                 }
                 mv = value.expect("Err: No DepthReached without value");
-                #[cfg(debug_assertions)]
+                #[cfg(feature = "tree_debug")]
                 {
                     tree = inner_tree;
                 }
@@ -162,7 +162,7 @@ pub fn predict_move(b: Board, time_limit: u32, h_s_param: Option<Heuristic>) -> 
                             now.elapsed().expect("Err: Invalid Sys time").as_millis()
                         );
                     }
-                    #[cfg(debug_assertions)]
+                    #[cfg(feature = "tree_debug")]
                     {
                         let mut f = OpenOptions::new()
                             .create(true)
@@ -184,7 +184,7 @@ pub fn predict_move(b: Board, time_limit: u32, h_s_param: Option<Heuristic>) -> 
                         now.elapsed().expect("Err: Invalid Sys time").as_millis()
                     );
                 }
-                #[cfg(debug_assertions)]
+                #[cfg(feature = "tree_debug")]
                 {
                     tree = inner_tree;
                 }
@@ -242,7 +242,7 @@ fn max_value(
     let mut v = MIN;
     let mut mv = ABResult::Inital;
     for p_mv in 0..state.get_player_info().borrow().get_moves().len() {
-        let mut inner_tree: Option<Tree<RTTree>> = match cfg!(debug_assertions) {
+        let mut inner_tree: Option<Tree<RTTree>> = match cfg!(feature = "tree_debug") {
             true => Option::Some(Tree::new(RTTree {
                 h_val: 0,
                 mv: state.get_player_info().borrow().get_moves()[p_mv].clone(),
@@ -274,7 +274,7 @@ fn max_value(
             }
         }
 
-        #[cfg(debug_assertions)]
+        #[cfg(feature = "tree_debug")]
         {
             inner_tree.as_mut().unwrap().val.h_val = v2;
             inner_tree.as_mut().unwrap().val.alpha = alpha;
@@ -287,7 +287,7 @@ fn max_value(
         }
         // should I prune
         if v >= beta {
-            #[cfg(debug_assertions)]
+            #[cfg(feature = "tree_debug")]
             {
                 for pruned_mv in p_mv..state.get_player_info().borrow().get_moves().len() {
                     tree.as_mut().unwrap().push(Tree::new(RTTree {
@@ -324,7 +324,7 @@ fn min_value(
     let mut v = MAX;
     let mut mv = ABResult::Inital;
     for p_mv in 0..state.get_player_info().borrow().get_moves().len() {
-        let mut inner_tree: Option<Tree<RTTree>> = match cfg!(debug_assertions) {
+        let mut inner_tree: Option<Tree<RTTree>> = match cfg!(feature = "tree_debug") {
             true => Option::Some(Tree::new(RTTree {
                 h_val: 0,
                 mv: state.get_player_info().borrow().get_moves()[p_mv].clone(),
@@ -356,7 +356,7 @@ fn min_value(
             }
         }
 
-        #[cfg(debug_assertions)]
+        #[cfg(feature = "tree_debug")]
         {
             inner_tree.as_mut().unwrap().val.h_val = v2;
             inner_tree.as_mut().unwrap().val.alpha = alpha;
@@ -370,7 +370,7 @@ fn min_value(
         }
 
         if v <= alpha {
-            #[cfg(debug_assertions)]
+            #[cfg(feature = "tree_debug")]
             {
                 for pruned_mv in p_mv..state.get_player_info().borrow().get_moves().len() {
                     tree.as_mut().unwrap().push(Tree::new(RTTree {

@@ -8,13 +8,22 @@ const TIME_LIMIT: u32 = 5;
 
 fn game_loop(red_h: Heuristic, black_h: Heuristic, child_num: u32) -> GameResult {
     let mut b = Board::new(&Option::None);
+    if child_num % 2 == 0 {
+        b.swap_current_player();
+    }
     let mut is_game_over = b.is_game_over();
     let mut red_counter = 0;
     let mut black_counter = 0;
     let mut time_since_last_jump = 0;
     while let None = is_game_over {
-        if red_counter + black_counter % 20 == 0 {
-            println!("Each player in game {} has done 20 moves", child_num);
+        if (red_counter + black_counter) % 20 == 0 {
+            println!(
+                "The players in game {} have done ({},{}) moves, time since last just is {}",
+                child_num, red_counter, black_counter, time_since_last_jump
+            );
+        }
+        if (red_counter + black_counter) % 40 == 0 && red_counter != 0 {
+            println!("board for child {}\n{}", child_num, b);
         }
         let m = match b.get_current_player() {
             Player::Red => {
@@ -38,6 +47,13 @@ fn game_loop(red_h: Heuristic, black_h: Heuristic, child_num: u32) -> GameResult
         b.do_move(m);
         is_game_over = b.is_game_over();
     }
+
+    println!(
+        "Game {} finided in ~{} moves",
+        child_num,
+        std::cmp::max(red_counter, black_counter)
+    );
+
     return match is_game_over.unwrap_or_else(|| {
         red_counter = std::u32::MAX;
         black_counter = std::u32::MAX;
@@ -58,8 +74,8 @@ fn run_generation(prev: Heuristic, siblings: u32, generation: u32) -> GameResult
     for i in 0..siblings {
         let base = prev.clone();
         children.push(thread::spawn(move || {
-            let red_h = if i == 0 { base.clone() } else { base.mutate(5) };
-            let black_h = base.mutate(5);
+            let black_h = base.mutate();
+            let red_h = base.clone();
             println!("Starting game {}", i);
             return game_loop(red_h, black_h, i);
         }));
@@ -74,13 +90,13 @@ fn run_generation(prev: Heuristic, siblings: u32, generation: u32) -> GameResult
         }
     }
 
-    best_result
+    return best_result;
 }
 
 fn main() {
     let mut h = Heuristic::default_new();
     for i in 0..10 {
-        let (c, nh) = run_generation(h, 5, i);
+        let (c, nh) = run_generation(h, 50, i);
         println!(
             "Generation {} ended selected new h: {:?} with c {}",
             i, nh, c
