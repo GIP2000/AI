@@ -11,6 +11,7 @@ fn game_loop(red_h: Heuristic, black_h: Heuristic, child_num: u32) -> GameResult
     let mut is_game_over = b.is_game_over();
     let mut red_counter = 0;
     let mut black_counter = 0;
+    let mut time_since_last_jump = 0;
     while let None = is_game_over {
         if red_counter + black_counter % 20 == 0 {
             println!("Each player in game {} has done 20 moves", child_num);
@@ -25,10 +26,25 @@ fn game_loop(red_h: Heuristic, black_h: Heuristic, child_num: u32) -> GameResult
                 predict_move(b.clone(), TIME_LIMIT, Option::Some(black_h.clone()))
             }
         };
+        if b.get_player_info().borrow().get_moves()[m].is_jump() {
+            time_since_last_jump = 0;
+        } else {
+            time_since_last_jump += 1;
+        }
+
+        if time_since_last_jump > 50 {
+            break;
+        }
         b.do_move(m);
         is_game_over = b.is_game_over();
     }
-    return match is_game_over.unwrap() {
+    return match is_game_over.unwrap_or_else(|| {
+        let (my_pieces, other_pieces) = b.get_pieces();
+        if my_pieces.len() > other_pieces.len() {
+            return b.get_current_player();
+        }
+        return b.get_current_player().get_other();
+    }) {
         Player::Red => (red_counter, red_h),
         Player::Black => (black_counter, black_h),
     };

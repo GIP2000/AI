@@ -118,6 +118,10 @@ impl Moves {
             jump_path: HashSet::new(),
         }
     }
+
+    pub fn is_jump(&self) -> bool {
+        !self.jump_path.is_empty()
+    }
 }
 
 #[derive(Debug, Clone)]
