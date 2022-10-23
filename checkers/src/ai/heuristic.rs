@@ -1,7 +1,9 @@
 use crate::board::{Board, BoardPiece, Cord, Player};
+use rand::Rng;
 
 type PieceType = (BoardPiece, Cord);
 
+#[derive(Clone, Debug)]
 pub struct Heuristic {
     // Normal Piece Value
     n_piece_val: i32,
@@ -61,6 +63,21 @@ impl Heuristic {
             per_move_val: 5,
             per_jump_move_val: 8,
         }
+    }
+
+    pub fn mutate(&self, max_value: i32) -> Self {
+        let mut rng = rand::thread_rng();
+        Self::new(
+            self.n_piece_val + rng.gen_range(-max_value..max_value),
+            self.k_piece_val + rng.gen_range(-max_value..max_value),
+            self.d_hr_mul + rng.gen_range(-max_value..max_value),
+            self.true_center + rng.gen_range(-max_value..max_value),
+            self.off_center + rng.gen_range(-max_value..max_value),
+            self.goalies_center + rng.gen_range(-max_value..max_value),
+            self.goalies_side + rng.gen_range(-max_value..max_value),
+            self.per_move_val + rng.gen_range(-max_value..max_value),
+            self.per_jump_move_val + rng.gen_range(-max_value..max_value),
+        )
     }
 
     pub fn h(&self, state: &Board, is_max: bool) -> i32 {

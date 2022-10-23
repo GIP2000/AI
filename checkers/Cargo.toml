@@ -2,10 +2,16 @@
 name = "checkers"
 version = "0.1.0"
 edition = "2021"
+default-run = "terminal_game"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 colored = "2"
+rand = "0.8.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.86"
+
+[features]
+default = ["enable_print"]
+enable_print = []

@@ -57,7 +57,10 @@ pub fn predict_move(b: Board, time_limit: u32, h_s_param: Option<Heuristic>) -> 
         })),
         false => Option::None,
     };
-    println!("Starting AB/P");
+    #[cfg(feature = "enable_print")]
+    {
+        println!("Starting AB/P");
+    }
     let h_s = h_s_param.unwrap_or(Heuristic::default_new());
     let now = SystemTime::now();
     let time_limit = ((time_limit as u128) * 1000) - 100;
@@ -85,7 +88,10 @@ pub fn predict_move(b: Board, time_limit: u32, h_s_param: Option<Heuristic>) -> 
         );
         match v {
             ABResult::Finished(value) => {
-                println!("Found Bottom Depth: {:?}", d);
+                #[cfg(feature = "enable_print")]
+                {
+                    println!("Found Bottom Depth: {:?}", d);
+                }
                 #[cfg(debug_assertions)]
                 {
                     let mut f = OpenOptions::new()
@@ -105,11 +111,14 @@ pub fn predict_move(b: Board, time_limit: u32, h_s_param: Option<Heuristic>) -> 
                 return value.expect("Err: Finished without value");
             }
             ABResult::TimeLimitExpired => {
-                println!(
-                    "Time limit expired in depth {:?}, current time is {:?}",
-                    d,
-                    now.elapsed().expect("Err: Invalid Sys time").as_millis()
-                );
+                #[cfg(feature = "enable_print")]
+                {
+                    println!(
+                        "Time limit expired in depth {:?}, current time is {:?}",
+                        d,
+                        now.elapsed().expect("Err: Invalid Sys time").as_millis()
+                    );
+                }
                 #[cfg(debug_assertions)]
                 {
                     let mut f = OpenOptions::new()
@@ -129,11 +138,14 @@ pub fn predict_move(b: Board, time_limit: u32, h_s_param: Option<Heuristic>) -> 
                 return mv;
             }
             ABResult::DepthReached(value) => {
-                println!(
-                    "Finished depth {:?}, current time is {:?}",
-                    d,
-                    now.elapsed().expect("Err: Invalid Sys time").as_millis()
-                );
+                #[cfg(feature = "enable_print")]
+                {
+                    println!(
+                        "Finished depth {:?}, current time is {:?}",
+                        d,
+                        now.elapsed().expect("Err: Invalid Sys time").as_millis()
+                    );
+                }
                 mv = value.expect("Err: No DepthReached without value");
                 #[cfg(debug_assertions)]
                 {
@@ -142,11 +154,14 @@ pub fn predict_move(b: Board, time_limit: u32, h_s_param: Option<Heuristic>) -> 
             }
             ABResult::Inital => {
                 if check_time_limit(time_limit, &now) {
-                    println!(
-                        "Time limit expired in depth {:?}, current time is {:?}",
-                        d,
-                        now.elapsed().expect("Err: Invalid Sys time").as_millis()
-                    );
+                    #[cfg(feature = "enable_print")]
+                    {
+                        println!(
+                            "Time limit expired in depth {:?}, current time is {:?}",
+                            d,
+                            now.elapsed().expect("Err: Invalid Sys time").as_millis()
+                        );
+                    }
                     #[cfg(debug_assertions)]
                     {
                         let mut f = OpenOptions::new()
@@ -161,11 +176,14 @@ pub fn predict_move(b: Board, time_limit: u32, h_s_param: Option<Heuristic>) -> 
                     }
                     return mv;
                 }
-                println!(
-                    "Finished depth {:?}, current time is {:?}",
-                    d,
-                    now.elapsed().expect("Err: Invalid Sys time").as_millis()
-                );
+                #[cfg(feature = "enable_print")]
+                {
+                    println!(
+                        "Finished depth {:?}, current time is {:?}",
+                        d,
+                        now.elapsed().expect("Err: Invalid Sys time").as_millis()
+                    );
+                }
                 #[cfg(debug_assertions)]
                 {
                     tree = inner_tree;
