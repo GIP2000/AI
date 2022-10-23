@@ -12,4 +12,4 @@ Cargo.lock
 
 
 # Testing Files for trees
-**/tree.json
+**/*tree.json

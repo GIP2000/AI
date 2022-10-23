@@ -58,7 +58,7 @@ pub fn predict_move(b: Board, time_limit: u32, h_s_param: Option<Heuristic>) -> 
         false => Option::None,
     };
     println!("Starting AB/P");
-    let h_s = h_s_param.unwrap_or_else(|| Heuristic::default_new());
+    let h_s = h_s_param.unwrap_or(Heuristic::default_new());
     let now = SystemTime::now();
     let time_limit = ((time_limit as u128) * 1000) - 100;
     loop {
@@ -92,7 +92,7 @@ pub fn predict_move(b: Board, time_limit: u32, h_s_param: Option<Heuristic>) -> 
                         .create(true)
                         .truncate(true)
                         .write(true)
-                        .open("tree.json")
+                        .open(format!("{:?}tree.json", b.get_current_player()))
                         .expect("FS Error");
 
                     write!(
@@ -116,7 +116,7 @@ pub fn predict_move(b: Board, time_limit: u32, h_s_param: Option<Heuristic>) -> 
                         .create(true)
                         .truncate(true)
                         .write(true)
-                        .open("tree.json")
+                        .open(format!("{:?}tree.json", b.get_current_player()))
                         .expect("FS Error");
 
                     write!(
@@ -153,7 +153,7 @@ pub fn predict_move(b: Board, time_limit: u32, h_s_param: Option<Heuristic>) -> 
                             .create(true)
                             .truncate(true)
                             .write(true)
-                            .open("tree.json")
+                            .open(format!("{:?}tree.json", b.get_current_player()))
                             .expect("FS Error");
 
                         write!(f, "{}", serde_json::to_string(&inner_tree).unwrap())
@@ -193,8 +193,8 @@ fn is_terminal(
         return Result::Ok((0, ABResult::TimeLimitExpired));
     }
     if let Some(winner) = state.is_game_over() {
-        if (winner == state.get_current_player() && is_max)
-            || (winner != state.get_current_player() && !is_max)
+        if (is_max && winner == state.get_current_player())
+            || (!is_max && winner != state.get_current_player())
         {
             return Result::Ok((MAX - depth as i32, ABResult::Finished(None)));
         }
