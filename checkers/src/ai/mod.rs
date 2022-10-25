@@ -79,6 +79,7 @@ pub fn predict_move(b: Board, time_limit: u32, h_s_param: Option<Heuristic>) -> 
         let (_, v) = max_value(
             b.clone(),
             d,
+            &d,
             MIN,
             MAX,
             time_limit,
@@ -202,6 +203,7 @@ fn check_time_limit(time_limit: u128, now: &SystemTime) -> bool {
 fn is_terminal(
     state: &Board,
     depth: u32,
+    max_depth: &u32,
     time_limit: u128,
     now: &SystemTime,
     is_max: bool,
@@ -216,7 +218,7 @@ fn is_terminal(
         {
             return Result::Ok((MAX - depth as i32, ABResult::Finished(None)));
         }
-        return Result::Ok((MIN + depth as i32, ABResult::Finished(None)));
+        return Result::Ok((MIN + (max_depth - depth) as i32, ABResult::Finished(None)));
     }
     if depth == 0 {
         return Result::Ok((h_s.h(&state, is_max), ABResult::DepthReached(None)));
@@ -227,6 +229,7 @@ fn is_terminal(
 fn max_value(
     state: Board,
     depth: u32,
+    max_depth: &u32,
     mut alpha: i32,
     beta: i32,
     time_limit: u128,
@@ -234,7 +237,7 @@ fn max_value(
     h_s: &Heuristic,
     tree: &mut Option<Tree<RTTree>>,
 ) -> (i32, ABResult) {
-    match is_terminal(&state, depth, time_limit, now, true, h_s) {
+    match is_terminal(&state, depth, max_depth, time_limit, now, true, h_s) {
         Result::Ok(r) => return r,
         Result::Err(_) => {}
     };
@@ -258,6 +261,7 @@ fn max_value(
         let (v2, t_move) = min_value(
             new_state,
             depth - 1,
+            max_depth,
             alpha,
             beta,
             time_limit,
@@ -309,6 +313,7 @@ fn max_value(
 fn min_value(
     state: Board,
     depth: u32,
+    max_depth: &u32,
     alpha: i32,
     mut beta: i32,
     time_limit: u128,
@@ -316,7 +321,7 @@ fn min_value(
     h_s: &Heuristic,
     tree: &mut Option<Tree<RTTree>>,
 ) -> (i32, ABResult) {
-    match is_terminal(&state, depth, time_limit, now, false, h_s) {
+    match is_terminal(&state, depth, max_depth, time_limit, now, false, h_s) {
         Result::Ok(r) => return r,
         Result::Err(_) => {}
     };
@@ -340,6 +345,7 @@ fn min_value(
         let (v2, t_move) = max_value(
             new_state,
             depth - 1,
+            max_depth,
             alpha,
             beta,
             time_limit,

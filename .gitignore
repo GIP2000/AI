@@ -13,3 +13,6 @@ Cargo.lock
 
 # Testing Files for trees
 **/*tree.json
+
+# Board files
+**/board*.txt
