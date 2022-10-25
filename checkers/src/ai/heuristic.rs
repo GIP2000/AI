@@ -53,15 +53,15 @@ impl Heuristic {
 
     pub fn default_new() -> Self {
         Self {
-            n_piece_val: 88,
-            k_piece_val: 144,
-            d_hr_mul: 1,
-            true_center: 47,
-            off_center: 21,
-            goalies_center: 18,
+            n_piece_val: 100,
+            k_piece_val: 150,
+            d_hr_mul: 5,
+            true_center: 50,
+            off_center: 25,
+            goalies_center: 30,
             goalies_side: 20,
-            per_move_val: 3,
-            per_jump_move_val: 4,
+            per_move_val: 4,
+            per_jump_move_val: 8,
         }
     }
 
