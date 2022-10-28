@@ -184,35 +184,32 @@ impl std::fmt::Display for Board {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         write!(
             fmt,
-            "   01234567\n{}",
+            "    0  1  2  3  4  5  6  7\n{}",
             self.board
                 .iter()
                 .enumerate()
-                .fold(String::from(""), |acc, (i, row)| {
-                    format!(
-                        "{}. {}\n{}",
-                        i,
-                        row.iter()
-                            .enumerate()
-                            .fold(String::from(""), |row_str, (j, el)| {
-                                let piece = match el {
-                                    BoardPiece::Red => "O".red(),
-                                    BoardPiece::KingRed => "K".red(),
-                                    BoardPiece::Black => "O".black(),
-                                    BoardPiece::KingBlack => "K".black(),
-                                    BoardPiece::Empty => " ".underline(),
-                                };
-                                format!(
-                                    "{}{}",
-                                    row_str,
-                                    match i % 2 == j % 2 {
-                                        true => piece.on_green(),
-                                        false => piece.on_magenta(),
-                                    }
-                                )
-                            }),
-                        acc
-                    )
+                .fold(String::from(""), |acc, (row_count, row)| {
+                    let (ends, mid) = row.iter().enumerate().fold(
+                        (String::from(""), String::from("")),
+                        |(ends, mid), (col_count, bp)| {
+                            let space = match col_count % 2 == row_count % 2 {
+                                true => " ".on_green(),
+                                false => " ".on_magenta(),
+                            };
+                            let square = match bp {
+                                BoardPiece::Red => "#".white().on_red(),
+                                BoardPiece::KingRed => "K".white().on_red(),
+                                BoardPiece::Black => "#".white().on_black(),
+                                BoardPiece::KingBlack => "K".white().on_black(),
+                                BoardPiece::Empty => space.clone(),
+                            };
+                            (
+                                format!("{}{}{}{}", ends, space, space, space),
+                                format!("{}{}{}{}", mid, space, square, space),
+                            )
+                        },
+                    );
+                    format!("   {}\n{}. {}\n   {}\n{}", ends, row_count, mid, ends, acc)
                 })
         )
     }

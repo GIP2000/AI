@@ -24,7 +24,7 @@ fn game_loop(
     while let None = is_game_over {
         if (red_counter + black_counter) % 20 == 0 {
             println!(
-                "The players in game {} have done ({},{}) moves, time since last just is {}",
+                "The players in game {} have done ({},{}) moves, time since last jump is {}",
                 child_num, red_counter, black_counter, time_since_last_jump
             );
         }

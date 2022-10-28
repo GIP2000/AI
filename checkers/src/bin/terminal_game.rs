@@ -67,7 +67,7 @@ fn read_number(input: &str) -> u32 {
 }
 
 fn read_user_input() -> usize {
-    read_number("Please Pick a Move") as usize
+    read_number("Please Pick a Move\nNote: jumps:{} contains which pieces will be jumped during that move (not necessarily in that order)") as usize
 }
 
 fn confirm(input: &str) -> bool {
@@ -108,7 +108,7 @@ fn get_single_game_mode(input: &str) -> MoveFinder {
 fn get_game_mode() -> (MoveFinder, MoveFinder) {
     (
         get_single_game_mode("Would you like to play for red (y/n)"),
-        get_single_game_mode("Would you like to play for Blue (y/n)"),
+        get_single_game_mode("Would you like to play for Black (y/n)"),
     )
 }
 
