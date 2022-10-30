@@ -156,30 +156,23 @@ impl Heuristic {
                 },
             );
 
-            return (current_score, bp.is_king());
+            return current_score;
         };
 
         let fold_func = |plyr: Player| {
-            return move |(prev, np, kp): (i32, i32, i32), pt: &PieceType| {
-                let (next, is_king) = per_piece(pt, plyr);
-                let mut nkp = kp;
-                let mut nnp = np;
-                match is_king {
-                    true => nkp += 1,
-                    false => nnp += 1,
-                }
-                return (prev + next, nnp, nkp);
+            return move |prev: i32, pt: &PieceType| {
+                return prev + per_piece(pt, plyr);
             };
         };
 
-        let (score_adder, mynp, mykp) = my_pieces
+        let score_adder = my_pieces
             .iter()
-            .fold((0, 0, 0), fold_func(state.get_current_player()));
+            .fold(0, fold_func(state.get_current_player()));
         score += score_adder;
 
-        let (score_subber, opnp, opkp) = other_pieces
+        let score_subber = other_pieces
             .iter()
-            .fold((0, 0, 0), fold_func(state.get_current_player()));
+            .fold(0, fold_func(state.get_current_player()));
         score -= score_subber;
 
         score += self.mobility(state);
