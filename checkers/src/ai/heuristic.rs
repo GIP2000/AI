@@ -23,6 +23,8 @@ pub struct Heuristic {
     per_move_val: i32,
     // Mobility bonus move multiplier for Jumps
     per_jump_move_val: i32,
+    //Agression multiplier
+    aggresion_multiplier: i32,
 }
 
 impl Heuristic {
@@ -37,6 +39,7 @@ impl Heuristic {
         goalies_side: i32,
         per_move_val: i32,
         per_jump_move_val: i32,
+        aggresion_multiplier: i32,
     ) -> Self {
         Self {
             n_piece_val,
@@ -48,6 +51,7 @@ impl Heuristic {
             goalies_side,
             per_move_val,
             per_jump_move_val,
+            aggresion_multiplier,
         }
     }
 
@@ -62,6 +66,7 @@ impl Heuristic {
             goalies_side: 20,
             per_move_val: 4,
             per_jump_move_val: 8,
+            aggresion_multiplier: 2,
         }
     }
 
@@ -76,17 +81,51 @@ impl Heuristic {
         let rng_goalies_side = std::cmp::max(1, self.goalies_side / 10);
         let rng_per_move_val = std::cmp::max(1, self.per_move_val / 10);
         let rng_per_jump_move_val = std::cmp::max(1, self.per_jump_move_val / 10);
+        let rng_aggresion_multiplier = std::cmp::max(1, self.aggresion_multiplier / 10);
 
         Self::new(
-            self.n_piece_val + rng.gen_range(-rng_n_piece_val..rng_n_piece_val),
-            self.k_piece_val + rng.gen_range(-rng_k_piece_val..rng_k_piece_val),
-            self.d_hr_mul + rng.gen_range(-rng_d_hr_mul..rng_d_hr_mul),
-            self.true_center + rng.gen_range(-rng_true_center..rng_true_center),
-            self.off_center + rng.gen_range(-rng_off_center..rng_off_center),
-            self.goalies_center + rng.gen_range(-rng_goalies_center..rng_goalies_center),
-            self.goalies_side + rng.gen_range(-rng_goalies_side..rng_goalies_side),
-            self.per_move_val + rng.gen_range(-rng_per_move_val..rng_per_move_val),
-            self.per_jump_move_val + rng.gen_range(-rng_per_jump_move_val..rng_per_jump_move_val),
+            std::cmp::min(
+                0,
+                self.n_piece_val + rng.gen_range(-rng_n_piece_val..rng_n_piece_val),
+            ),
+            std::cmp::min(
+                0,
+                self.k_piece_val + rng.gen_range(-rng_k_piece_val..rng_k_piece_val),
+            ),
+            std::cmp::min(
+                0,
+                self.d_hr_mul + rng.gen_range(-rng_d_hr_mul..rng_d_hr_mul),
+            ),
+            std::cmp::min(
+                0,
+                self.true_center + rng.gen_range(-rng_true_center..rng_true_center),
+            ),
+            std::cmp::min(
+                0,
+                self.off_center + rng.gen_range(-rng_off_center..rng_off_center),
+            ),
+            std::cmp::min(
+                0,
+                self.goalies_center + rng.gen_range(-rng_goalies_center..rng_goalies_center),
+            ),
+            std::cmp::min(
+                0,
+                self.goalies_side + rng.gen_range(-rng_goalies_side..rng_goalies_side),
+            ),
+            std::cmp::min(
+                0,
+                self.per_move_val + rng.gen_range(-rng_per_move_val..rng_per_move_val),
+            ),
+            std::cmp::min(
+                0,
+                self.per_jump_move_val
+                    + rng.gen_range(-rng_per_jump_move_val..rng_per_jump_move_val),
+            ),
+            std::cmp::min(
+                0,
+                self.aggresion_multiplier
+                    + rng.gen_range(-rng_aggresion_multiplier..rng_aggresion_multiplier),
+            ),
         )
     }
 
@@ -117,22 +156,35 @@ impl Heuristic {
                 },
             );
 
-            return current_score;
+            return (current_score, bp.is_king());
         };
 
         let fold_func = |plyr: Player| {
-            return move |prev: i32, pt: &PieceType| {
-                return prev + per_piece(pt, plyr);
+            return move |(prev, np, kp): (i32, i32, i32), pt: &PieceType| {
+                let (next, is_king) = per_piece(pt, plyr);
+                let mut nkp = kp;
+                let mut nnp = np;
+                match is_king {
+                    true => nkp += 1,
+                    false => nnp += 1,
+                }
+                return (prev + next, nnp, nkp);
             };
         };
 
-        score += my_pieces
+        let (score_adder, mynp, mykp) = my_pieces
             .iter()
-            .fold(0, fold_func(state.get_current_player()));
-        score -= other_pieces
+            .fold((0, 0, 0), fold_func(state.get_current_player()));
+        score += score_adder;
+
+        let (score_subber, opnp, opkp) = other_pieces
             .iter()
-            .fold(0, fold_func(state.get_current_player().get_other()));
+            .fold((0, 0, 0), fold_func(state.get_current_player()));
+        score -= score_subber;
+
         score += self.mobility(state);
+
+        score += self.aggresion_value(my_pieces.len() as f32, other_pieces.len() as f32);
 
         if !is_max {
             score = -score;
@@ -181,5 +233,19 @@ impl Heuristic {
             true => self.k_piece_val,
             false => self.n_piece_val,
         }
+    }
+
+    fn aggresion_value(&self, cp_piece_count: f32, op_piece_count: f32) -> i32 {
+        let mut mul: f32 = 1f32;
+        let mut big: f32 = cp_piece_count;
+        let mut little: f32 = op_piece_count;
+        if op_piece_count == cp_piece_count {
+            return 0;
+        } else if op_piece_count > cp_piece_count {
+            mul = -1f32;
+            big = op_piece_count;
+            little = cp_piece_count;
+        }
+        return ((big / little) * self.aggresion_multiplier as f32 * mul).ceil() as i32;
     }
 }
