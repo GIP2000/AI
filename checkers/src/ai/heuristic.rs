@@ -23,8 +23,10 @@ pub struct Heuristic {
     per_move_val: i32,
     // Mobility bonus move multiplier for Jumps
     per_jump_move_val: i32,
-    //Agression multiplier
+    // Agression multiplier
     aggresion_multiplier: i32,
+    // Penalty for kings being far in the end game
+    distance_penalty: i32,
 }
 
 impl Heuristic {
@@ -40,6 +42,7 @@ impl Heuristic {
         per_move_val: i32,
         per_jump_move_val: i32,
         aggresion_multiplier: i32,
+        distance_penalty: i32,
     ) -> Self {
         Self {
             n_piece_val,
@@ -52,6 +55,7 @@ impl Heuristic {
             per_move_val,
             per_jump_move_val,
             aggresion_multiplier,
+            distance_penalty,
         }
     }
 
@@ -67,6 +71,7 @@ impl Heuristic {
             per_move_val: 4,
             per_jump_move_val: 8,
             aggresion_multiplier: 5,
+            distance_penalty: 2,
         }
     }
 
@@ -82,6 +87,7 @@ impl Heuristic {
         let rng_per_move_val = std::cmp::max(1, self.per_move_val / 10);
         let rng_per_jump_move_val = std::cmp::max(1, self.per_jump_move_val / 10);
         let rng_aggresion_multiplier = std::cmp::max(1, self.aggresion_multiplier / 10);
+        let rng_distance_penalty = std::cmp::max(1, self.distance_penalty / 10);
 
         Self::new(
             std::cmp::min(
@@ -126,6 +132,10 @@ impl Heuristic {
                 self.aggresion_multiplier
                     + rng.gen_range(-rng_aggresion_multiplier..rng_aggresion_multiplier),
             ),
+            std::cmp::min(
+                0,
+                self.distance_penalty + rng.gen_range(-rng_distance_penalty..rng_distance_penalty),
+            ),
         )
     }
 
@@ -133,11 +143,12 @@ impl Heuristic {
         let (my_pieces, other_pieces) = state.get_pieces();
         let mut score = 0;
 
-        // let is_end_game = my_pieces.len() + other_pieces.len() < 6;
+        let is_end_game = my_pieces.len() + other_pieces.len() < 6;
 
-        let per_piece = |pt: &PieceType, plyr: Player| {
+        let per_piece = |pt: &PieceType, plyr: Player, my_ps_flag: bool| {
             let (bp, bc) = pt;
             let mut current_score = self.piece_type_value(bp);
+            let mut max_distance = 0;
             if !bp.is_king() {
                 current_score += self.depth_distance(
                     bc,
@@ -146,7 +157,12 @@ impl Heuristic {
                         Player::Black => 7,
                     },
                 );
-            } else {
+            } else if is_end_game {
+                let pieces = match my_ps_flag {
+                    true => &other_pieces,
+                    false => &my_pieces,
+                };
+                max_distance = self.square_distance(bc, pieces);
             }
             current_score += self.in_center(bc);
             current_score += self.in_goal(
@@ -157,36 +173,27 @@ impl Heuristic {
                 },
             );
 
-            return current_score;
+            return (current_score, max_distance);
         };
 
-        // fn fold_func(
-        //     plyr: Player,
-        //     op_list: &Vec<(BoardPiece, (usize, usize))>,
-        //     max_distance: &mut i32,
-        // ) -> impl for<'a> Fn(i32, &'a (BoardPiece, (usize, usize))) -> i32 {
-        //     return move |prev: i32, pt: &PieceType| {
-        //         return prev + per_piece(pt, plyr, op_list);
-        //     };
-        // }
-
-        let fold_func = |plyr: Player| {
-            return move |prev: (i32, &Vec<BoardPiece, Cord>), pt: &PieceType| {
-                return (prev.0 + per_piece(pt, plyr), prev.1);
+        let fold_func = |plyr: Player, my_ps_flag: bool| {
+            return move |(prev_score, prev_max): (i32, i32), pt: &PieceType| {
+                let (score, max_distance) = per_piece(pt, plyr, my_ps_flag);
+                return (prev_score + score, std::cmp::max(max_distance, prev_max));
             };
         };
 
-        score += my_pieces
+        let (score_adder, max_my_d) = my_pieces
             .iter()
-            .fold((0, &other_pieces), fold_func(state.get_current_player()))
-            .0;
-        // score += score_adder;
+            .fold((0, 0), fold_func(state.get_current_player(), true));
+        score += score_adder;
+        score -= max_my_d * self.distance_penalty;
 
-        score -= other_pieces
+        let (score_subber, max_ot_d) = other_pieces
             .iter()
-            .fold((0, &my_pieces), fold_func(state.get_current_player()))
-            .0;
-        // score -= score_subber;
+            .fold((0, 0), fold_func(state.get_current_player(), false));
+        score -= score_subber;
+        score += max_ot_d * self.distance_penalty;
 
         score += self.mobility(state);
 
@@ -239,6 +246,17 @@ impl Heuristic {
             true => self.k_piece_val,
             false => self.n_piece_val,
         }
+    }
+
+    fn square_distance(&self, &(row, col): &Cord, op_pieces: &Vec<(BoardPiece, Cord)>) -> i32 {
+        op_pieces.iter().fold(0, |prev, &(_, (e_row, e_col))| {
+            std::cmp::max(
+                prev,
+                (((e_row as i32 - row as i32).pow(2) + (e_col as i32 - col as i32).pow(2)) as f32)
+                    .sqrt()
+                    .ceil() as i32,
+            )
+        })
     }
 
     fn aggresion_value(&self, cp_piece_count: f32, op_piece_count: f32) -> i32 {
