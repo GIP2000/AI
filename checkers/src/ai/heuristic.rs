@@ -60,13 +60,13 @@ impl Heuristic {
             n_piece_val: 100,
             k_piece_val: 150,
             d_hr_mul: 5,
-            true_center: 50,
-            off_center: 25,
-            goalies_center: 30,
-            goalies_side: 20,
+            true_center: 5,
+            off_center: 3,
+            goalies_center: 8,
+            goalies_side: 4,
             per_move_val: 4,
             per_jump_move_val: 8,
-            aggresion_multiplier: 2,
+            aggresion_multiplier: 5,
         }
     }
 
@@ -165,15 +165,15 @@ impl Heuristic {
             };
         };
 
-        let score_adder = my_pieces
+        score += my_pieces
             .iter()
             .fold(0, fold_func(state.get_current_player()));
-        score += score_adder;
+        // score += score_adder;
 
-        let score_subber = other_pieces
+        score -= other_pieces
             .iter()
             .fold(0, fold_func(state.get_current_player()));
-        score -= score_subber;
+        // score -= score_subber;
 
         score += self.mobility(state);
 
@@ -218,7 +218,7 @@ impl Heuristic {
     }
 
     fn depth_distance(&self, cords: &Cord, goal: i32) -> i32 {
-        return (cords.1 as i32 - goal).abs() * self.d_hr_mul;
+        return (7 - (cords.1 as i32 - goal).abs()) * self.d_hr_mul;
     }
 
     fn piece_type_value(&self, piece: &BoardPiece) -> i32 {
@@ -229,16 +229,16 @@ impl Heuristic {
     }
 
     fn aggresion_value(&self, cp_piece_count: f32, op_piece_count: f32) -> i32 {
-        let mut mul: f32 = 1f32;
+        let mut sign: f32 = 1f32;
         let mut big: f32 = cp_piece_count;
         let mut little: f32 = op_piece_count;
         if op_piece_count == cp_piece_count {
             return 0;
         } else if op_piece_count > cp_piece_count {
-            mul = -1f32;
+            sign = -1f32;
             big = op_piece_count;
             little = cp_piece_count;
         }
-        return ((big / little) * self.aggresion_multiplier as f32 * mul).ceil() as i32;
+        return ((big / little) * self.aggresion_multiplier as f32 * sign).ceil() as i32;
     }
 }
