@@ -146,6 +146,7 @@ impl Heuristic {
                         Player::Black => 7,
                     },
                 );
+            } else {
             }
             current_score += self.in_center(bc);
             current_score += self.in_goal(
@@ -159,20 +160,32 @@ impl Heuristic {
             return current_score;
         };
 
+        // fn fold_func(
+        //     plyr: Player,
+        //     op_list: &Vec<(BoardPiece, (usize, usize))>,
+        //     max_distance: &mut i32,
+        // ) -> impl for<'a> Fn(i32, &'a (BoardPiece, (usize, usize))) -> i32 {
+        //     return move |prev: i32, pt: &PieceType| {
+        //         return prev + per_piece(pt, plyr, op_list);
+        //     };
+        // }
+
         let fold_func = |plyr: Player| {
-            return move |prev: i32, pt: &PieceType| {
-                return prev + per_piece(pt, plyr);
+            return move |prev: (i32, &Vec<BoardPiece, Cord>), pt: &PieceType| {
+                return (prev.0 + per_piece(pt, plyr), prev.1);
             };
         };
 
         score += my_pieces
             .iter()
-            .fold(0, fold_func(state.get_current_player()));
+            .fold((0, &other_pieces), fold_func(state.get_current_player()))
+            .0;
         // score += score_adder;
 
         score -= other_pieces
             .iter()
-            .fold(0, fold_func(state.get_current_player()));
+            .fold((0, &my_pieces), fold_func(state.get_current_player()))
+            .0;
         // score -= score_subber;
 
         score += self.mobility(state);
