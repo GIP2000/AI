@@ -350,28 +350,28 @@ impl Board {
             board,
             current_player: match file_input {
                 None => black_info_r.clone(),
-                Some(s) => {
-                    match s.lines().nth(8) {
-                        Some(ns) => match ns.parse::<u32>() {
+                Some(s) => match s.lines().nth(8) {
+                    Some(ns) => {
+                        match ns.parse::<u32>() {
                             Err(_) => {
-                                println!("Invalid File input: Player is not a number, defaulting to Blue");
+                                println!("Invalid File input: Player is not a number, defaulting to Black");
                                 black_info_r.clone()
                             }
                             Ok(n) => match n {
                                 1 => black_info_r.clone(),
                                 2 => red_info_r.clone(),
                                 _ => {
-                                    println!("Invalid File input: Player # must be 1 or 0, defaulting to Blue");
+                                    println!("Invalid File input: Player # must be 1 or 0, defaulting to Black");
                                     black_info_r.clone()
                                 }
                             },
-                        },
-                        None => {
-                            println!("Invalid File input: No player to choose, defaulting to Blue");
-                            black_info_r.clone()
                         }
                     }
-                }
+                    None => {
+                        println!("Invalid File input: No player to choose, defaulting to Black");
+                        black_info_r.clone()
+                    }
+                },
             },
             black_info: black_info_r,
             red_info: red_info_r,
