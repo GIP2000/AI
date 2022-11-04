@@ -2,6 +2,7 @@ pub mod heuristic;
 mod visualize_tree_ai;
 use crate::board::{Board, Moves};
 use heuristic::Heuristic;
+use rand::Rng;
 use std::fs::OpenOptions;
 use std::i32::MAX;
 use std::io::Write;
@@ -221,7 +222,11 @@ fn is_terminal(
         return Result::Ok((MIN + (max_depth - depth) as i32, ABResult::Finished(None)));
     }
     if depth == 0 {
-        return Result::Ok((h_s.h(&state, is_max), ABResult::DepthReached(None)));
+        let mut rng = rand::thread_rng();
+        return Result::Ok((
+            h_s.h(&state, is_max) + rng.gen_range(-9..9),
+            ABResult::DepthReached(None),
+        ));
     }
     Result::Err(())
 }
