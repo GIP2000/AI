@@ -406,17 +406,6 @@ impl Board {
             Player::Black => self.red_info.borrow(),
         };
 
-        // let mut mine: Vec<(BoardPiece, Cord)> = Vec::new();
-        // let mut other: Vec<(BoardPiece, Cord)> = Vec::new();
-        //
-        // for &(row, col) in cp.piece_locs.iter() {
-        //     mine.push((self.board[row][col], (row, col)));
-        // }
-        //
-        // for &(row, col) in op.piece_locs.iter() {
-        //     other.push((self.board[row][col], (row, col)));
-        // }
-
         let mine = cp
             .piece_locs
             .iter()
