@@ -14,7 +14,7 @@
         - `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
         - run `cargo --version` to ensure rust is insalled properly
 2. Download code.
-    - `git clone git@github.com:GIP2000/AI.git`
+    - `git clone https://github.com/GIP2000/AI.git`
 
 # Usage
 1. `cd` into the `checkers` directory
