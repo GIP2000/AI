@@ -1,7 +1,7 @@
 use std::{io::stdin, str::FromStr};
 
 pub fn get_input<T: FromStr>(prompt: &str) -> T {
-    println!("{}", prompt);
+    print!("{}", prompt);
     let mut path: String = "".to_string();
     match stdin().read_line(&mut path) {
         Result::Ok(_) => match path.parse::<T>() {
