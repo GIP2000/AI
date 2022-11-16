@@ -13,5 +13,8 @@ fn main() {
     let learning_rate: f64 = get_input("What is the learning rate?");
     nn.train(X, Y, epoch, learning_rate);
 
-    nn.save(&get_input("What is the output file"));
+    nn.save(&get_input("What is the output file"))
+        .expect("Error Saving the file");
+
+    println!("File Saved Succesfully!");
 }

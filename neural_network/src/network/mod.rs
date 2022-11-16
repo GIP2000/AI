@@ -69,7 +69,7 @@ impl Network {
             .open(file_path)
             .ok()?;
 
-        let mut first_line = vec![format!("{}", self.input_size)];
+        let mut first_line = vec![self.input_size.to_string()];
         for layer in self.layers.iter() {
             first_line.push(layer.len().to_string());
         }
@@ -82,9 +82,7 @@ impl Network {
                     &mut f,
                     "{}",
                     node.iter()
-                        .map(|v| v.to_string())
-                        .collect::<Vec<String>>()
-                        .join(" ")
+                        .fold("".to_string(), |acc, v| format!("{} {}", acc, v))
                 )
                 .ok()?;
             }
@@ -130,6 +128,7 @@ impl Network {
         }
         return (a, in_vec);
     }
+
     pub fn predict(&self, x: Vec<f64>) -> Vec<u8> {
         let l = x.len();
         return self
