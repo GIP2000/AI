@@ -20,7 +20,7 @@ pub fn parse_data_file<T: FromStr>(file_name: &String) -> Option<(Vec<Vec<f64>>,
     let fs = read_to_string(file_name).ok()?;
     let mut lines = fs.split('\n');
     let first_row: Vec<usize> = delim_parse(lines.next()?.split(' '))?;
-    let input_size = first_row.get(1)?;
+    let input_size = *first_row.get(1)?;
 
     let mut x = vec![];
     let mut y = vec![];
@@ -29,10 +29,10 @@ pub fn parse_data_file<T: FromStr>(file_name: &String) -> Option<(Vec<Vec<f64>>,
         x.push(delim_parse(
             line.split(' ')
                 .enumerate()
-                .filter(|&(i, _)| i < *input_size)
+                .filter(|&(i, _)| i < input_size)
                 .map(|(_, s)| s),
         )?);
-        y.push(delim_parse(line.split(' ').skip(*input_size))?);
+        y.push(delim_parse(line.split(' ').skip(input_size))?);
     }
     return Some((x, y));
 }
