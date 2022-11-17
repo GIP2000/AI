@@ -2,10 +2,13 @@ mod activation;
 mod loss;
 
 use activation::{sig as g, sig_prime as g_prime};
+use anyhow::Result;
 use std::iter::zip;
 use std::{fs::OpenOptions, io::Write};
 
-#[derive(Debug)]
+const BIAS: f64 = -1f64;
+
+#[derive(Debug, Clone)]
 pub struct Metric {
     correct_positive: u32,
     correct_negative: u32,
@@ -61,20 +64,19 @@ impl Network {
         }
     }
 
-    pub fn save(&self, file_path: &String) -> Option<()> {
+    pub fn save(&self, file_path: &String) -> Result<()> {
         let mut f = OpenOptions::new()
             .write(true)
             .create(true)
             .truncate(true)
-            .open(file_path)
-            .ok()?;
+            .open(file_path)?;
 
         let mut first_line = vec![self.input_size.to_string()];
         for layer in self.layers.iter() {
             first_line.push(layer.len().to_string());
         }
 
-        writeln!(&mut f, "{}", first_line.join(" ")).ok()?;
+        writeln!(&mut f, "{}", first_line.join(" "))?;
 
         for layer in self.layers.iter() {
             for node in layer.iter() {
@@ -83,16 +85,15 @@ impl Network {
                     "{}",
                     node.iter()
                         .fold("".to_string(), |acc, v| format!("{} {}", acc, v))
-                )
-                .ok()?;
+                )?;
             }
         }
-        return Some(());
+        return Result::Ok(());
     }
 
     pub fn train(&mut self, X: Vec<Vec<f64>>, Y: Vec<Vec<f64>>, epoch: u32, learning_rate: f64) {
         for e in 0..epoch {
-            println!("Staring epock {}", e);
+            println!("Staring epoch {}", e);
             for (x, y) in zip(X.iter(), Y.iter()) {
                 // forward prop
                 let (a, in_vec) = self.predict_float(x.clone());
@@ -104,26 +105,49 @@ impl Network {
                     .collect();
 
                 for (_, layer) in self.layers.iter().rev().skip(1).enumerate() {
+                    // this is terrible for performance I could do this before likely
+                    if grad.len() < layer.len() {
+                        grad.resize(layer.len(), 0f64);
+                    }
                     for (i, node) in layer.iter().enumerate() {
+                        // this is terrible for performance I could do this before likely
+                        if grad.len() < node.len() {
+                            grad.resize(node.len(), 0f64);
+                        }
                         grad[i] = g_prime(in_vec[i])
                             * node.iter().enumerate().fold(0f64, |acc, (j, w)| {
                                 return acc + w * grad[j];
                             });
                     }
                 }
-
                 // update weights
+                for (i, layer) in self.layers.iter_mut().enumerate() {
+                    for node in layer.iter_mut() {
+                        for (j, w) in node.iter_mut().enumerate() {
+                            *w += learning_rate * a[i] * grad[j];
+                        }
+                    }
+                }
             }
         }
     }
 
-    fn predict_float(&self, mut a: Vec<f64>) -> (Vec<f64>, Vec<f64>) {
+    fn predict_float(&self, mut x: Vec<f64>) -> (Vec<f64>, Vec<f64>) {
+        // this seems wrong
+        let mut a = vec![BIAS];
+        a.append(&mut x);
+
         let mut in_vec = vec![];
         for layer in self.layers.iter() {
+            if layer.len() > a.len() {
+                a.resize(layer.len(), 0f64);
+            }
+            if layer.len() > in_vec.len() {
+                in_vec.resize(layer.len(), 0f64);
+            }
             for (j, node) in layer.iter().enumerate() {
-                let inj = node.iter().fold(0f64, |acc, w| acc + (w * a[j]));
-                a[j] = g(inj);
-                in_vec[j] = inj;
+                in_vec[j] = node.iter().fold(0f64, |acc, w| acc + (w * a[j]));
+                a[j] = g(in_vec[j]);
             }
         }
         return (a, in_vec);
@@ -147,7 +171,7 @@ impl Network {
     }
 
     pub fn test(&self, X: Vec<Vec<f64>>, Y: Vec<Vec<u8>>) -> Vec<Metric> {
-        let mut response: Vec<Metric> = Vec::with_capacity(Y[0].len());
+        let mut response: Vec<Metric> = vec![Metric::default(); Y[0].len()];
         for (x, y) in zip(X, Y) {
             let pred = self.predict(x);
             for (i, v) in zip(y, pred).enumerate() {

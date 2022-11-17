@@ -3,7 +3,12 @@ use neural_network::parse::file::{parse_data_file, parse_weight_file};
 use neural_network::parse::user_input::get_input;
 
 fn main() {
+    println!(
+        "dir: {}",
+        std::env::current_dir().unwrap().as_path().to_str().unwrap()
+    );
     let weight_file_name = get_input("Please Enter a file path for the weights: ");
+    println!("weight_file_name: {}", weight_file_name);
     let (shape, weights) = parse_weight_file(&weight_file_name).expect("File Shape Invalid");
     let mut nn = Network::new(shape, weights);
 
