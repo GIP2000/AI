@@ -1,7 +1,7 @@
 mod activation;
 mod loss;
 
-use activation::{sig as g, sig_prime as g_prime};
+use activation::sig as g;
 use anyhow::{Context, Result};
 use std::iter::zip;
 use std::{fs::OpenOptions, io::Write};
@@ -41,8 +41,34 @@ impl Metric {
     }
 }
 
+pub struct Node {
+    pub a: f64,
+    pub grad: f64,
+    pub prev_weights: Vec<f64>,
+}
+
+impl Default for Node {
+    fn default() -> Self {
+        return Self::new(BIAS, 0f64, vec![]);
+    }
+}
+
+impl Node {
+    pub fn new(a: f64, grad: f64, prev_weights: Vec<f64>) -> Self {
+        return Self {
+            a,
+            grad,
+            prev_weights,
+        };
+    }
+
+    pub fn prime(&self) -> f64 {
+        return self.a * (1f64 - self.a);
+    }
+}
+
 pub struct Network {
-    layers: Vec<Vec<Vec<f64>>>,
+    layers: Vec<Vec<Node>>,
     input_size: usize,
 }
 
@@ -50,7 +76,7 @@ impl std::fmt::Debug for Network {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         for (l, layer) in self.layers.iter().enumerate() {
             for (n, node) in layer.iter().enumerate() {
-                writeln!(fmt, "{:?} {:?} {:?}", l, n, node)?;
+                writeln!(fmt, "{:?} {:?} {:?}", l, n, node.prev_weights)?;
             }
         }
         return Result::Ok(());
@@ -61,19 +87,21 @@ impl std::fmt::Display for Network {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         let mut first_line = vec![self.input_size.to_string()];
         for layer in self.layers.iter() {
-            first_line.push(layer.len().to_string());
+            first_line.push((layer.len() - 1).to_string());
         }
 
         writeln!(fmt, "{}", first_line.join(" "))?;
 
         for layer in self.layers.iter() {
-            for node in layer.iter() {
-                writeln!(
-                    fmt,
-                    "{}",
-                    node.iter()
-                        .fold("".to_string(), |acc, v| format!("{} {}", acc, v))
-                )?;
+            for node in layer.iter().skip(1) {
+                writeln!(fmt, "{}", {
+                    let mut a = node
+                        .prev_weights
+                        .iter()
+                        .fold("".to_string(), |acc, v| format!("{}{} ", acc, v));
+                    a.pop();
+                    a
+                })?;
             }
         }
         return Ok(());
@@ -89,10 +117,16 @@ impl Network {
                 .iter()
                 .skip(1)
                 .map(|&x| {
-                    (0..x)
-                        .into_iter()
-                        .map(|_| line_iter.next().unwrap())
-                        .collect()
+                    let mut result = Vec::with_capacity(x + 1);
+                    result.push(Node::default());
+                    for _ in 0..x {
+                        result.push(Node::new(
+                            0f64,
+                            0f64,
+                            line_iter.next().expect("Expected another node"),
+                        ));
+                    }
+                    return result;
                 })
                 .collect(),
         }
@@ -113,36 +147,43 @@ impl Network {
             println!("Staring epoch {}", e);
             for (x, y) in zip(X.iter(), Y.iter()) {
                 // forward prop
-                let (a, in_vec) = self.predict_float(x.clone());
-                //back propigate
-                let mut grad: Vec<f64> = (0..self.layers[self.layers.len() - 1].len())
-                    .map(|j| {
-                        return g_prime(in_vec[j]) * (y[j] - a[j]);
-                    })
-                    .collect();
+                self.predict_float(x.clone());
 
-                for (_, layer) in self.layers.iter().rev().skip(1).enumerate() {
-                    // this is terrible for performance I could do this before likely
-                    if grad.len() < layer.len() {
-                        grad.resize(layer.len(), 0f64);
-                    }
-                    for (i, node) in layer.iter().enumerate() {
-                        // this is terrible for performance I could do this before likely
-                        if grad.len() < node.len() {
-                            grad.resize(node.len(), 0f64);
-                        }
-                        grad[i] = g_prime(in_vec[i])
-                            * node.iter().enumerate().fold(0f64, |acc, (j, w)| {
-                                return acc + w * grad[j];
+                //back propigate
+
+                // inital grads
+                for (node, y_val) in zip(
+                    self.layers
+                        .last_mut()
+                        .expect("Error no layers")
+                        .iter_mut()
+                        .skip(1),
+                    y.iter(),
+                ) {
+                    node.grad = node.prime() * (y_val - node.a);
+                }
+
+                // back propigated gardiants
+                for l in (0..(self.layers.len() - 1)).rev() {
+                    for i in 1..self.layers[l].len() {
+                        self.layers[l][i].grad = self.layers[l][i].prime()
+                            * (1..self.layers[l + 1].len()).fold(0f64, |acc, j| {
+                                acc + self.layers[l][i].prev_weights[j] * self.layers[l + 1][j].grad
                             });
                     }
                 }
 
                 // update weights
-                for (i, layer) in self.layers.iter_mut().enumerate() {
-                    for node in layer.iter_mut() {
-                        for (j, w) in node.iter_mut().enumerate() {
-                            *w += learning_rate * a[i] * grad[j];
+                for l in (0..(self.layers.len())).rev() {
+                    for n in 0..self.layers[l].len() {
+                        for w in 0..self.layers[l][n].prev_weights.len() {
+                            self.layers[l][n].prev_weights[w] += learning_rate
+                                * if l == 0 {
+                                    BIAS
+                                } else {
+                                    self.layers[l - 1][w].a
+                                }
+                                * self.layers[l][n].grad;
                         }
                     }
                 }
@@ -150,45 +191,40 @@ impl Network {
         }
     }
 
-    fn predict_float(&self, mut x: Vec<f64>) -> (Vec<f64>, Vec<f64>) {
-        // this seems wrong
-        let mut a = vec![BIAS];
-        a.append(&mut x);
+    fn predict_float(&mut self, a: Vec<f64>) {
+        for node in self.layers[0].iter_mut() {
+            node.a = g(node
+                .prev_weights
+                .iter()
+                .skip(1)
+                .enumerate()
+                .fold(0f64, |acc, (wi, w)| acc + w * a[wi]))
+        }
 
-        let mut in_vec = vec![];
-        for layer in self.layers.iter() {
-            if layer.len() > a.len() {
-                a.resize(layer.len(), 0f64);
-            }
-            if layer.len() > in_vec.len() {
-                in_vec.resize(layer.len(), 0f64);
-            }
-            for (j, node) in layer.iter().enumerate() {
-                in_vec[j] = node.iter().fold(0f64, |acc, w| acc + (w * a[j]));
-                a[j] = g(in_vec[j]);
+        for l in 1..self.layers.len() {
+            for j in 1..self.layers[l].len() {
+                self.layers[l][j].a = g((0..self.layers[l][j].prev_weights.len())
+                    .fold(0f64, |acc, w| {
+                        acc + self.layers[l][j].prev_weights[w] * self.layers[l - 1][w].a
+                    }));
             }
         }
-        return (a, in_vec);
     }
 
-    pub fn predict(&self, x: Vec<f64>) -> Vec<u8> {
-        let l = x.len();
-        return self
-            .predict_float(x)
-            .0
-            .split_at(l)
-            .0
+    pub fn predict(&mut self, a: Vec<f64>) -> Vec<u8> {
+        self.predict_float(a);
+        return self.layers[self.layers.len() - 1]
             .iter()
-            .map(|&x| {
-                if x >= 0.5 {
+            .map(|x| {
+                if x.a >= 0.5 {
                     return 1u8;
                 }
                 return 0u8;
             })
-            .collect();
+            .collect::<Vec<_>>();
     }
 
-    pub fn test(&self, X: Vec<Vec<f64>>, Y: Vec<Vec<u8>>) -> Vec<Metric> {
+    pub fn test(&mut self, X: Vec<Vec<f64>>, Y: Vec<Vec<u8>>) -> Vec<Metric> {
         let mut response: Vec<Metric> = vec![Metric::default(); Y[0].len()];
         for (x, y) in zip(X, Y) {
             let pred = self.predict(x);

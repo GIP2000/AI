@@ -47,7 +47,7 @@ pub fn parse_data_file<T: FromStr>(file_name: &String) -> Result<(Vec<Vec<f64>>,
         x.push(delim_parse(
             line.split(' ')
                 .enumerate()
-                .filter(|&(i, _)| i < size - 1)
+                .filter(|&(i, _)| i < size)
                 .map(|(_, s)| s),
         )?);
         y.push(delim_parse(line.split(' ').skip(size))?);
