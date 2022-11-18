@@ -1,7 +1,5 @@
-use std::error::Error;
-use std::{fs::read_to_string, str::FromStr};
-
 use anyhow::{Context, Result};
+use std::{fs::read_to_string, str::FromStr};
 
 pub fn parse_weight_file(file_name: &String) -> Result<(Vec<usize>, Vec<Vec<f64>>)> {
     let s = read_to_string(file_name)?;
@@ -30,22 +28,29 @@ pub fn parse_data_file<T: FromStr>(file_name: &String) -> Result<(Vec<Vec<f64>>,
     let mut lines = fs.split('\n');
     let first_row: Vec<usize> =
         delim_parse(lines.next().context("no first_row found")?.split(' '))?;
-    let input_size = *first_row.get(1).context("no input size found")?;
+
+    let mut sizes = vec![];
+    for (&cur, &prev) in first_row.iter().skip(1).zip(first_row.iter()) {
+        println!("cur {}\n prev {}", cur, prev);
+        for _ in 0..prev {
+            sizes.push(cur);
+        }
+    }
 
     let mut x = vec![];
     let mut y = vec![];
 
-    for line in lines {
+    for (line, size) in std::iter::zip(lines, sizes) {
         if line.as_bytes().is_empty() {
             continue;
         }
         x.push(delim_parse(
             line.split(' ')
                 .enumerate()
-                .filter(|&(i, _)| i < input_size)
+                .filter(|&(i, _)| i < size - 1)
                 .map(|(_, s)| s),
         )?);
-        y.push(delim_parse(line.split(' ').skip(input_size))?);
+        y.push(delim_parse(line.split(' ').skip(size))?);
     }
     return Result::Ok((x, y));
 }

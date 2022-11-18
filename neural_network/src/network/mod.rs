@@ -2,7 +2,7 @@ mod activation;
 mod loss;
 
 use activation::{sig as g, sig_prime as g_prime};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::iter::zip;
 use std::{fs::OpenOptions, io::Write};
 
@@ -46,6 +46,40 @@ pub struct Network {
     input_size: usize,
 }
 
+impl std::fmt::Debug for Network {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        for (l, layer) in self.layers.iter().enumerate() {
+            for (n, node) in layer.iter().enumerate() {
+                writeln!(fmt, "{:?} {:?} {:?}", l, n, node)?;
+            }
+        }
+        return Result::Ok(());
+    }
+}
+
+impl std::fmt::Display for Network {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        let mut first_line = vec![self.input_size.to_string()];
+        for layer in self.layers.iter() {
+            first_line.push(layer.len().to_string());
+        }
+
+        writeln!(fmt, "{}", first_line.join(" "))?;
+
+        for layer in self.layers.iter() {
+            for node in layer.iter() {
+                writeln!(
+                    fmt,
+                    "{}",
+                    node.iter()
+                        .fold("".to_string(), |acc, v| format!("{} {}", acc, v))
+                )?;
+            }
+        }
+        return Ok(());
+    }
+}
+
 impl Network {
     pub fn new(shape: Vec<usize>, lines: Vec<Vec<f64>>) -> Self {
         let mut line_iter = lines.into_iter();
@@ -71,24 +105,7 @@ impl Network {
             .truncate(true)
             .open(file_path)?;
 
-        let mut first_line = vec![self.input_size.to_string()];
-        for layer in self.layers.iter() {
-            first_line.push(layer.len().to_string());
-        }
-
-        writeln!(&mut f, "{}", first_line.join(" "))?;
-
-        for layer in self.layers.iter() {
-            for node in layer.iter() {
-                writeln!(
-                    &mut f,
-                    "{}",
-                    node.iter()
-                        .fold("".to_string(), |acc, v| format!("{} {}", acc, v))
-                )?;
-            }
-        }
-        return Result::Ok(());
+        return write!(&mut f, "{}", self).context("Error Writting");
     }
 
     pub fn train(&mut self, X: Vec<Vec<f64>>, Y: Vec<Vec<f64>>, epoch: u32, learning_rate: f64) {
@@ -120,6 +137,7 @@ impl Network {
                             });
                     }
                 }
+
                 // update weights
                 for (i, layer) in self.layers.iter_mut().enumerate() {
                     for node in layer.iter_mut() {
