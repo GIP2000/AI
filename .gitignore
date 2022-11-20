@@ -16,3 +16,4 @@ Cargo.lock
 
 # Board files
 **/board*.txt
+**/neural_network/*.txt

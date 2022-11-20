@@ -1,46 +1,15 @@
 mod activation;
-mod loss;
+pub mod metric;
 
 use activation::sig as g;
 use anyhow::{Context, Result};
+use metric::Metric;
 use std::iter::zip;
 use std::{fs::OpenOptions, io::Write};
 
 const BIAS: f64 = -1f64;
 
-#[derive(Debug, Clone)]
-pub struct Metric {
-    correct_positive: u32,
-    correct_negative: u32,
-    false_positive: u32,
-    false_negative: u32,
-}
-
-impl Default for Metric {
-    fn default() -> Self {
-        Self {
-            correct_positive: 0,
-            correct_negative: 0,
-            false_positive: 0,
-            false_negative: 0,
-        }
-    }
-}
-
-impl Metric {
-    fn update(&mut self, (real, pred): (u8, u8)) {
-        match (real, pred) {
-            (1, 1) => self.correct_positive += 1,
-            (0, 0) => self.correct_negative += 1,
-            (1, 0) => self.false_negative += 1,
-            (0, 1) => self.false_positive += 1,
-            _ => {
-                panic!("Error all values must be 0 or 1")
-            }
-        }
-    }
-}
-
+#[derive(Debug)]
 pub struct Node {
     pub a: f64,
     pub grad: f64,
@@ -98,7 +67,7 @@ impl std::fmt::Display for Network {
                     let mut a = node
                         .prev_weights
                         .iter()
-                        .fold("".to_string(), |acc, v| format!("{}{} ", acc, v));
+                        .fold("".to_string(), |acc, v| format!("{}{:.3} ", acc, v));
                     a.pop();
                     a
                 })?;
@@ -168,22 +137,24 @@ impl Network {
                     for i in 1..self.layers[l].len() {
                         self.layers[l][i].grad = self.layers[l][i].prime()
                             * (1..self.layers[l + 1].len()).fold(0f64, |acc, j| {
-                                acc + self.layers[l][i].prev_weights[j] * self.layers[l + 1][j].grad
+                                acc + self.layers[l + 1][j].prev_weights[i]
+                                    * self.layers[l + 1][j].grad
                             });
                     }
                 }
 
                 // update weights
-                for l in (0..(self.layers.len())).rev() {
+                for l in (0..self.layers.len()).rev() {
                     for n in 0..self.layers[l].len() {
                         for w in 0..self.layers[l][n].prev_weights.len() {
-                            self.layers[l][n].prev_weights[w] += learning_rate
-                                * if l == 0 {
-                                    BIAS
-                                } else {
-                                    self.layers[l - 1][w].a
-                                }
-                                * self.layers[l][n].grad;
+                            let val = match (l, w) {
+                                (0, 0) => BIAS,
+                                (0, w) => x[w - 1],
+                                (l, w) => self.layers[l - 1][w].a,
+                            };
+                            self.layers[l][n].prev_weights[w] +=
+                                learning_rate * val * self.layers[l][n].grad;
+                            // println!("nw = {}", self.layers[l][n].prev_weights[w]);
                         }
                     }
                 }
@@ -192,21 +163,19 @@ impl Network {
     }
 
     fn predict_float(&mut self, a: Vec<f64>) {
-        for node in self.layers[0].iter_mut() {
-            node.a = g(node
-                .prev_weights
-                .iter()
-                .skip(1)
-                .enumerate()
-                .fold(0f64, |acc, (wi, w)| acc + w * a[wi]))
-        }
-
-        for l in 1..self.layers.len() {
+        for l in 0..self.layers.len() {
             for j in 1..self.layers[l].len() {
-                self.layers[l][j].a = g((0..self.layers[l][j].prev_weights.len())
-                    .fold(0f64, |acc, w| {
-                        acc + self.layers[l][j].prev_weights[w] * self.layers[l - 1][w].a
-                    }));
+                self.layers[l][j].a = g((0..self.layers[l][j].prev_weights.len()).fold(
+                    0f64,
+                    |acc, w| {
+                        let val = match (l, w) {
+                            (0, 0) => BIAS,
+                            (0, w) => a[w - 1],
+                            (l, w) => self.layers[l - 1][w].a,
+                        };
+                        acc + self.layers[l][j].prev_weights[w] * val
+                    },
+                ));
             }
         }
     }
@@ -215,6 +184,7 @@ impl Network {
         self.predict_float(a);
         return self.layers[self.layers.len() - 1]
             .iter()
+            .skip(1)
             .map(|x| {
                 if x.a >= 0.5 {
                     return 1u8;

@@ -1,3 +1,4 @@
+use neural_network::network::metric::Metric;
 use neural_network::network::Network;
 use neural_network::parse::file::{parse_data_file, parse_weight_file};
 use neural_network::parse::user_input::get_input;
@@ -12,6 +13,6 @@ fn main() {
     let (X, Y) = parse_data_file::<u8>(&testing_file_path).expect("error parsing training file");
 
     let results = nn.test(X, Y);
-
-    println!("Results: {:?}", results);
+    let output_file_path = get_input("Please Enter a file path for the result file: ");
+    Metric::save(results, &output_file_path).expect("Error writting result file");
 }
