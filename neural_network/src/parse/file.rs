@@ -31,7 +31,6 @@ pub fn parse_data_file<T: FromStr>(file_name: &String) -> Result<(Vec<Vec<f64>>,
 
     let mut sizes = vec![];
     for (&cur, &prev) in first_row.iter().skip(1).zip(first_row.iter()) {
-        println!("cur {}\n prev {}", cur, prev);
         for _ in 0..prev {
             sizes.push(cur);
         }
