@@ -154,7 +154,6 @@ impl Network {
                             };
                             self.layers[l][n].prev_weights[w] +=
                                 learning_rate * val * self.layers[l][n].grad;
-                            // println!("nw = {}", self.layers[l][n].prev_weights[w]);
                         }
                     }
                 }
