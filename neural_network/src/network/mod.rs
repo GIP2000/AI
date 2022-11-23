@@ -4,16 +4,18 @@ pub mod metric;
 use activation::sig as g;
 use anyhow::{Context, Result};
 use metric::Metric;
+use rand::thread_rng;
+use rand_distr::{Distribution, Normal};
 use std::iter::zip;
 use std::{fs::OpenOptions, io::Write};
 
 const BIAS: f64 = -1f64;
 
 #[derive(Debug)]
-pub struct Node {
-    pub a: f64,
-    pub grad: f64,
-    pub prev_weights: Vec<f64>,
+struct Node {
+    a: f64,
+    grad: f64,
+    prev_weights: Vec<f64>,
 }
 
 impl Default for Node {
@@ -23,7 +25,16 @@ impl Default for Node {
 }
 
 impl Node {
-    pub fn new(a: f64, grad: f64, prev_weights: Vec<f64>) -> Self {
+    fn random_new(size: usize) -> Self {
+        let mut rng = thread_rng();
+        let gaussian = Normal::new(0.0, 1.0).expect("Erorr initalizing normal");
+        Self {
+            a: 0f64,
+            grad: 0f64,
+            prev_weights: (0..size).map(|_| gaussian.sample(&mut rng)).collect(),
+        }
+    }
+    fn new(a: f64, grad: f64, prev_weights: Vec<f64>) -> Self {
         return Self {
             a,
             grad,
@@ -31,7 +42,7 @@ impl Node {
         };
     }
 
-    pub fn prime(&self) -> f64 {
+    fn prime(&self) -> f64 {
         return self.a * (1f64 - self.a);
     }
 }
@@ -78,6 +89,24 @@ impl std::fmt::Display for Network {
 }
 
 impl Network {
+    pub fn random_new(shape: Vec<usize>) -> Self {
+        Self {
+            input_size: shape[0],
+            layers: (1..shape.len())
+                .map(|i| {
+                    let nodes = shape[i];
+                    let weights = shape[i - 1];
+                    let mut result = Vec::with_capacity(nodes + 1);
+                    result.push(Node::default());
+                    for _ in 0..nodes {
+                        result.push(Node::random_new(weights + 1));
+                    }
+                    return result;
+                })
+                .collect(),
+        }
+    }
+
     pub fn new(shape: Vec<usize>, lines: Vec<Vec<f64>>) -> Self {
         let mut line_iter = lines.into_iter();
         Self {

@@ -1,3 +1,4 @@
+use super::util::delim_parse;
 use anyhow::{Context, Result};
 use std::{fs::read_to_string, str::FromStr};
 
@@ -9,18 +10,6 @@ pub fn parse_weight_file(file_name: &String) -> Result<(Vec<usize>, Vec<Vec<f64>
         .map(|l| delim_parse::<f64>(l.split(' ')))
         .collect::<Result<Vec<Vec<f64>>>>()?;
     return Result::Ok((shape, weights));
-}
-
-fn delim_parse<'a, T: FromStr>(line: impl Iterator<Item = &'a str>) -> Result<Vec<T>> {
-    let b = line
-        .filter(|v| !v.as_bytes().is_empty())
-        .map(|v| {
-            v.parse::<T>()
-                .ok()
-                .with_context(|| format!("could not parse **{}**", v))
-        })
-        .collect::<Result<Vec<T>>>();
-    return b;
 }
 
 pub fn parse_data_file<T: FromStr>(file_name: &String) -> Result<(Vec<Vec<f64>>, Vec<Vec<T>>)> {
