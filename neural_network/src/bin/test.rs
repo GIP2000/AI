@@ -13,5 +13,5 @@ fn main() {
 
     let results = nn.test(X, Y);
     let output_file_path = get_input("Please Enter a file path for the result file: ");
-    Metric::save(results, &output_file_path).expect("Error writting result file");
+    Metric::save(results.as_slice(), &output_file_path).expect("Error writting result file");
 }

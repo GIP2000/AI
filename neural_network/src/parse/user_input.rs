@@ -5,13 +5,7 @@ pub fn get_input<T: FromStr>(prompt: &str) -> T {
     let mut path: String = "".to_string();
     match stdin().read_line(&mut path) {
         Result::Ok(_) => {
-            if let Some('\n') = path.chars().next_back() {
-                path.pop();
-            }
-            if let Some('\r') = path.chars().next_back() {
-                path.pop();
-            }
-
+            let path = path.trim();
             match path.parse::<T>() {
                 Result::Ok(v) => v,
                 Result::Err(_) => {

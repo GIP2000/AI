@@ -65,9 +65,9 @@ impl Default for Metric {
     }
 }
 
-impl std::ops::Add<Metric> for Metric {
+impl std::ops::Add<&Metric> for Metric {
     type Output = Metric;
-    fn add(mut self, rhs: Metric) -> Self {
+    fn add(mut self, rhs: &Metric) -> Self {
         self.A += rhs.A;
         self.B += rhs.B;
         self.C += rhs.C;
@@ -121,7 +121,7 @@ impl std::ops::Add<Average> for Average {
 }
 
 impl Metric {
-    pub fn save(metrics: Vec<Metric>, file_path: &String) -> Result<()> {
+    pub fn save(metrics: &[Metric], file_path: &String) -> Result<()> {
         let mut f = OpenOptions::new()
             .write(true)
             .create(true)
@@ -131,8 +131,8 @@ impl Metric {
         let (avg, global_metric) = metrics.into_iter().try_fold(
             (Average::default(), Metric::default()),
             |(avg, global), x| -> Result<_> {
-                writeln!(&mut f, "{} {}", x, &x as &dyn Calculate)?;
-                return Result::Ok((avg + (&x).into(), global + x));
+                writeln!(&mut f, "{} {}", x, x as &dyn Calculate)?;
+                return Result::Ok((avg + x.into(), global + x));
             },
         )?;
         writeln!(&mut f, "{}", &global_metric as &dyn Calculate)?;
