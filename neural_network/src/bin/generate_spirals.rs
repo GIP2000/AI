@@ -1,9 +1,8 @@
-use anyhow::{Context, Result};
 use neural_network::parse::user_input::get_input;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use rand_distr::{Distribution, Normal, NormalError, Uniform};
-use std::fs::{read_to_string, OpenOptions};
+use rand_distr::{Distribution, Normal, Uniform};
+use std::fs::OpenOptions;
 use std::io::Write;
 fn main() {
     let train_file: String = get_input("output train file name: ");
