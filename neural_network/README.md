@@ -26,10 +26,9 @@
 
 
 # Write Up <a name="Write-up"/>
-
 ## Spirals Dataset Generation
 
-A classic starter problem for machine learning is classifyling to spirals. This dataset requires that two spirals are generated and their (x,y) along with which spiral they belong to. I generated the spirals from scratch by creating a vector of unifromly distributed random radii with the length of the amount of points I wanted to generate. Then each x cordinate was calulated by $x = r*cos(r) + \mu $ and $y = r*sin(r) + \mu$ where $\mu$ is a random 0 mean and .02 sigma random variable. This was done twice however the second time the second time the x and y formula's were multiplyed by -1 making $x = -r*cos(r) + \mu$ and $y = -r*sin(r) + \mu$. Then I shuffled both lists and collected 80% for training and left 20% for testing.
+A classic starter problem for machine learning is classifyling to spirals. This dataset requires that two spirals are generated and their (x,y) along with which spiral they belong to. I generated the spirals from scratch by creating a vector of unifromly distributed random radii with the length of the amount of points I wanted to generate. Then each x cordinate was calulated by $x = r\*cos(r) + \mu$ and $y = r\*sin(r) + \mu$ where $\mu$ is a random 0 mean and .02 sigma random variable. This was done twice however the second time the second time the x and y formula's were multiplyed by -1 making $x = -r\*cos(r) + \mu$ and $y = -r\*sin(r) + \mu$. Then I shuffled both lists and collected 80% for training and left 20% for testing.
 
 ### Training Data
 ![train](https://user-images.githubusercontent.com/10522254/206037392-89328b0c-468d-4e53-85e7-cf7ab8aea2c6.png)
@@ -37,7 +36,7 @@ A classic starter problem for machine learning is classifyling to spirals. This 
 ### Testing data
 ![test](https://user-images.githubusercontent.com/10522254/206037391-00a6d1a9-b186-47b5-b2ad-a19158abb0cc.png)
 
-
+The code to generate the spiral can be found [here](src/bin/generate_spirals.rs)
 ## Neural Network
 The shape of my network was 2 256 1. There are two inputs (the x and y coordinates). I chose 256 hidden layers, and the output layers is one since it is a Binary Classifier.
 I trained the neural network for 10,000 epochs with a learning rate of .001. (Note this took 3 hours, I tried it with 5,000 epochs and it didn't break 90% accuracy)
@@ -45,7 +44,8 @@ I trained the neural network for 10,000 epochs with a learning rate of .001. (No
 ## Results
 
 The results file contains the results as follows:
-```588 0 8 604  0.993 1.000 0.987 0.993
+```
+588 0 8 604  0.993 1.000 0.987 0.993
 0.993 1.000 0.987 0.993
 0.993 1.000 0.987 0.993
 ```
