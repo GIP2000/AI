@@ -86,6 +86,15 @@ pub enum Player {
     Red = -1,
 }
 
+impl From<Player> for u8 {
+    fn from(value: Player) -> Self {
+        match value {
+            Player::Black => 1,
+            Player::Red => 2,
+        }
+    }
+}
+
 impl Player {
     pub fn get_other(&self) -> Self {
         match self {
@@ -266,6 +275,22 @@ pub struct Board {
                       // current_player: Rc<RefCell<PlayerInfo>>,
 }
 
+pub struct OutputFileBoard<'a>(&'a Board);
+
+impl<'a> std::fmt::Display for OutputFileBoard<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for row in self.0.board.iter().rev() {
+            for col in row.iter() {
+                let char: char = (*col).into();
+                write!(f, "{} ", char)?;
+            }
+            write!(f, "\n")?;
+        }
+        let player: u8 = self.0.players.get_current_player().player.into();
+        write!(f, "{}", player)
+    }
+}
+
 impl std::fmt::Display for Board {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         write!(
@@ -305,7 +330,7 @@ impl FromStr for Board {
             ([[BoardPiece::Empty; 8]; 8], Players::default()),
             |(mut board, mut players), (i, row)| {
                 if i > 8 {
-                    bail!("Invalid File input: File too long");
+                    return Ok((board, players));
                 }
                 if i > 7 {
                     match row
@@ -324,8 +349,8 @@ impl FromStr for Board {
                 }
                 let mut col_i = ((i % 2) == 0) as usize;
                 for c in row.chars().into_iter() {
-                    if c == ' ' {
-                        return Ok((board, players));
+                    if c == ' ' || c == '0' {
+                        continue;
                     }
                     if col_i > 7 {
                         bail!(
@@ -434,6 +459,9 @@ impl Default for Board {
 }
 
 impl Board {
+    pub fn display_file<'a>(&'a self) -> OutputFileBoard<'a> {
+        OutputFileBoard(self)
+    }
     fn new(board: [[BoardPiece; 8]; 8], players: Players) -> Self {
         let mut obj = Self { board, players };
         for (row, row_arr) in obj.board.iter().enumerate() {
@@ -816,5 +844,27 @@ impl Board {
 
     pub fn get_current_player(&self) -> Player {
         self.players.get_current_player().player
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_display() -> anyhow::Result<()> {
+        let board1 = Board::default();
+        println!("{}", board1.display_file());
+        let board2: Board = format!("{}", board1.display_file()).parse()?;
+
+        println!("{}", board1);
+        println!("{}", board2);
+
+        for (row1, row2) in board1.board.iter().zip(board2.board.iter()) {
+            for (col1, col2) in row1.iter().zip(row2.iter()) {
+                assert_eq!(*col1, *col2)
+            }
+        }
+        Ok(())
     }
 }
