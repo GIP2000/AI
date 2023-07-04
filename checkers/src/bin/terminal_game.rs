@@ -175,7 +175,11 @@ fn offer_swap(b: &mut Board) {
 
 fn main() {
     let init = get_init_board();
-    let mut b = Board::new(&init);
+    let mut b = if let Some(ref init_b) = init {
+        init_b.parse().unwrap()
+    } else {
+        Board::default()
+    };
     offer_swap(&mut b);
     let (red, black) = get_game_mode();
     let time_limit = get_time_limit(&init);

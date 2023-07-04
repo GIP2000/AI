@@ -34,8 +34,9 @@ impl ABResult {
 }
 
 pub fn predict_move(b: Board, time_limit: u32, h_s_param: Option<Heuristic>) -> usize {
-    let player_info_rc = b.get_player_info();
-    let player_info = player_info_rc.borrow();
+    // let player_info_rc = b.get_player_info();
+    // let player_info = player_info_rc.borrow();
+    let player_info = b.get_player_info();
 
     if player_info.get_moves().len() == 1 {
         // if there is only one move do it
@@ -249,11 +250,11 @@ fn max_value(
 
     let mut v = MIN;
     let mut mv = ABResult::Inital;
-    for p_mv in 0..state.get_player_info().borrow().get_moves().len() {
+    for p_mv in 0..state.get_player_info().get_moves().len() {
         let mut inner_tree: Option<Tree<RTTree>> = match cfg!(feature = "tree_debug") {
             true => Option::Some(Tree::new(RTTree {
                 h_val: 0,
-                mv: state.get_player_info().borrow().get_moves()[p_mv].clone(),
+                mv: state.get_player_info().get_moves()[p_mv].clone(),
                 is_max: true,
                 alpha,
                 beta,
@@ -333,11 +334,11 @@ fn min_value(
 
     let mut v = MAX;
     let mut mv = ABResult::Inital;
-    for p_mv in 0..state.get_player_info().borrow().get_moves().len() {
+    for p_mv in 0..state.get_player_info().get_moves().len() {
         let mut inner_tree: Option<Tree<RTTree>> = match cfg!(feature = "tree_debug") {
             true => Option::Some(Tree::new(RTTree {
                 h_val: 0,
-                mv: state.get_player_info().borrow().get_moves()[p_mv].clone(),
+                mv: state.get_player_info().get_moves()[p_mv].clone(),
                 is_max: false,
                 alpha,
                 beta,

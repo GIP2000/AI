@@ -140,6 +140,7 @@ impl Network {
         return write!(&mut f, "{}", self).context("Error Writting");
     }
 
+    #[allow(non_snake_case)]
     pub fn train(&mut self, X: Vec<Vec<f64>>, Y: Vec<Vec<f64>>, epoch: u32, learning_rate: f64) {
         for e in 0..epoch {
             println!("Staring epoch {}", e);
@@ -222,6 +223,7 @@ impl Network {
             .collect::<Vec<_>>();
     }
 
+    #[allow(non_snake_case)]
     pub fn test(&mut self, X: Vec<Vec<f64>>, Y: Vec<Vec<u8>>) -> Vec<Metric> {
         let mut response: Vec<Metric> = vec![Metric::default(); Y[0].len()];
         for (x, y) in zip(X, Y) {

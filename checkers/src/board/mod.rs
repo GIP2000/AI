@@ -1,8 +1,7 @@
-use colored::Colorize;
+use anyhow::{anyhow, bail, Context, Result};
+use colored::{ColoredString, Colorize};
 use serde::{Deserialize, Serialize};
-use std::cell::RefCell;
-use std::collections::HashSet;
-use std::rc::Rc;
+use std::{collections::HashSet, str::FromStr};
 
 pub type Cord = (usize, usize);
 
@@ -16,7 +15,7 @@ pub enum BoardPiece {
 }
 
 impl TryFrom<char> for BoardPiece {
-    type Error = ();
+    type Error = anyhow::Error;
     fn try_from(value: char) -> Result<Self, Self::Error> {
         match value {
             '1' => Ok(Self::Black),
@@ -24,8 +23,34 @@ impl TryFrom<char> for BoardPiece {
             '3' => Ok(Self::KingBlack),
             '4' => Ok(Self::KingRed),
             '0' => Ok(Self::Empty),
-            _ => Err(()),
+            _ => Err(anyhow!("Invalid piece value {}", value)),
         }
+    }
+}
+
+impl From<BoardPiece> for char {
+    fn from(value: BoardPiece) -> Self {
+        match value {
+            BoardPiece::Black => '1',
+            BoardPiece::Red => '2',
+            BoardPiece::KingBlack => '3',
+            BoardPiece::KingRed => '4',
+            BoardPiece::Empty => '0',
+        }
+    }
+}
+impl TryFrom<&BoardPiece> for ColoredString {
+    type Error = anyhow::Error;
+    fn try_from(value: &BoardPiece) -> Result<Self, Self::Error> {
+        Ok(match value {
+            BoardPiece::Red => "#".white().on_red(),
+            BoardPiece::KingRed => "K".white().on_red(),
+            BoardPiece::Black => "#".white().on_black(),
+            BoardPiece::KingBlack => "K".white().on_black(),
+            BoardPiece::Empty => {
+                bail!("is space");
+            }
+        })
     }
 }
 
@@ -155,29 +180,90 @@ impl PlayerInfo {
     }
 }
 
-#[derive(Debug)]
-pub struct Board {
-    board: [[BoardPiece; 8]; 8],
-    black_info: Rc<RefCell<PlayerInfo>>,
-    red_info: Rc<RefCell<PlayerInfo>>,
-    current_player: Rc<RefCell<PlayerInfo>>,
+#[derive(Debug, Clone)]
+pub struct Players {
+    players: [PlayerInfo; 2],
+    black: usize,
+    red: usize,
 }
-
-impl Clone for Board {
-    fn clone(&self) -> Self {
-        let red_info = Rc::new((*(self.red_info)).clone());
-        let black_info = Rc::new((*(self.black_info)).clone());
-        let current_player = match self.current_player.borrow().player {
-            Player::Red => red_info.clone(),
-            Player::Black => black_info.clone(),
-        };
+impl Default for Players {
+    fn default() -> Self {
         Self {
-            board: self.board.clone(),
-            red_info,
-            black_info,
-            current_player,
+            players: [
+                PlayerInfo {
+                    moves: Vec::new(),
+                    can_jump: false,
+                    piece_locs: HashSet::with_capacity(12),
+                    player: Player::Black,
+                },
+                PlayerInfo {
+                    moves: Vec::new(),
+                    can_jump: false,
+                    piece_locs: HashSet::with_capacity(12),
+                    player: Player::Red,
+                },
+            ],
+            black: 0,
+            red: 1,
         }
     }
+}
+impl Players {
+    fn swap(&mut self) {
+        self.players.rotate_left(1);
+        self.black = 1 - self.black;
+        self.red = 1 - self.red;
+    }
+
+    fn get_current_players_mut(&mut self) -> (&mut PlayerInfo, &mut PlayerInfo) {
+        let (a, b) = self.players.split_at_mut(1);
+        (&mut a[0], &mut b[0])
+    }
+    fn get_current_players(&self) -> (&PlayerInfo, &PlayerInfo) {
+        (&self.players[0], &self.players[1])
+    }
+
+    fn get_current_player(&self) -> &PlayerInfo {
+        &self.players[0]
+    }
+    fn get_current_player_mut(&mut self) -> &mut PlayerInfo {
+        &mut self.players[0]
+    }
+    #[allow(dead_code)]
+    fn get_other_player(&self) -> &PlayerInfo {
+        &self.players[1]
+    }
+    #[allow(dead_code)]
+    fn get_other_player_mut(&mut self) -> &mut PlayerInfo {
+        &mut self.players[1]
+    }
+
+    #[allow(dead_code)]
+    fn get_red(&self) -> &PlayerInfo {
+        &self.players[self.red]
+    }
+    #[allow(dead_code)]
+    fn get_red_mut(&mut self) -> &mut PlayerInfo {
+        &mut self.players[self.red]
+    }
+
+    #[allow(dead_code)]
+    fn get_black(&self) -> &PlayerInfo {
+        &self.players[self.black]
+    }
+    #[allow(dead_code)]
+    fn get_black_mut(&mut self) -> &mut PlayerInfo {
+        &mut self.players[self.black]
+    }
+}
+
+const BOARD_SIZE: usize = 8;
+#[derive(Debug, Clone)]
+pub struct Board {
+    board: [[BoardPiece; BOARD_SIZE]; BOARD_SIZE],
+    players: Players, // black_info: Rc<RefCell<PlayerInfo>>,
+                      // red_info: Rc<RefCell<PlayerInfo>>,
+                      // current_player: Rc<RefCell<PlayerInfo>>,
 }
 
 impl std::fmt::Display for Board {
@@ -196,13 +282,9 @@ impl std::fmt::Display for Board {
                                 true => " ".on_green(),
                                 false => " ".on_magenta(),
                             };
-                            let square = match bp {
-                                BoardPiece::Red => "#".white().on_red(),
-                                BoardPiece::KingRed => "K".white().on_red(),
-                                BoardPiece::Black => "#".white().on_black(),
-                                BoardPiece::KingBlack => "K".white().on_black(),
-                                BoardPiece::Empty => space.clone(),
-                            };
+                            let pre_square = bp.try_into();
+                            let square = pre_square.as_ref().unwrap_or(&space);
+
                             (
                                 format!("{}{}{}{}", ends, space, space, space),
                                 format!("{}{}{}{}", mid, space, square, space),
@@ -215,196 +297,166 @@ impl std::fmt::Display for Board {
     }
 }
 
-impl Board {
-    pub fn new(file_input: &Option<String>) -> Self {
-        let board = match file_input {
-            Some(s) => {
-                let mut board = [[BoardPiece::Empty; 8]; 8];
-                for (i, row) in s.split('\n').enumerate() {
-                    if i > 7 {
-                        break;
-                    }
-                    let mut col_i = ((i % 2) == 0) as usize;
-                    for c in row.chars().into_iter() {
-                        if c == ' ' {
-                            continue;
-                        }
-                        if col_i > 7 {
-                            println!(
-                                "File Format Error too many pieces on a row, col_i: {:?}  c:{:?}",
-                                col_i, c
-                            );
-                            return Self::new(&None);
-                        }
-                        match c.try_into() {
-                            Ok(bp) => {
-                                board[7 - i][col_i] = bp;
-                                col_i += 2;
-                            }
-                            Err(_) => {
-                                println!("Error Reading input {:}, making default Board!", c);
-                                return Self::new(&None);
-                            }
-                        }
-                    }
+impl FromStr for Board {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (board, players) = s.split('\n').enumerate().try_fold(
+            ([[BoardPiece::Empty; 8]; 8], Players::default()),
+            |(mut board, mut players), (i, row)| {
+                if i > 8 {
+                    bail!("Invalid File input: File too long");
                 }
-                board
-            }
-            None => [
-                [
-                    BoardPiece::Black,
-                    BoardPiece::Empty,
-                    BoardPiece::Black,
-                    BoardPiece::Empty,
-                    BoardPiece::Black,
-                    BoardPiece::Empty,
-                    BoardPiece::Black,
-                    BoardPiece::Empty,
-                ],
-                [
-                    BoardPiece::Empty,
-                    BoardPiece::Black,
-                    BoardPiece::Empty,
-                    BoardPiece::Black,
-                    BoardPiece::Empty,
-                    BoardPiece::Black,
-                    BoardPiece::Empty,
-                    BoardPiece::Black,
-                ],
-                [
-                    BoardPiece::Black,
-                    BoardPiece::Empty,
-                    BoardPiece::Black,
-                    BoardPiece::Empty,
-                    BoardPiece::Black,
-                    BoardPiece::Empty,
-                    BoardPiece::Black,
-                    BoardPiece::Empty,
-                ],
-                [
-                    BoardPiece::Empty,
-                    BoardPiece::Empty,
-                    BoardPiece::Empty,
-                    BoardPiece::Empty,
-                    BoardPiece::Empty,
-                    BoardPiece::Empty,
-                    BoardPiece::Empty,
-                    BoardPiece::Empty,
-                ],
-                [
-                    BoardPiece::Empty,
-                    BoardPiece::Empty,
-                    BoardPiece::Empty,
-                    BoardPiece::Empty,
-                    BoardPiece::Empty,
-                    BoardPiece::Empty,
-                    BoardPiece::Empty,
-                    BoardPiece::Empty,
-                ],
-                [
-                    BoardPiece::Empty,
-                    BoardPiece::Red,
-                    BoardPiece::Empty,
-                    BoardPiece::Red,
-                    BoardPiece::Empty,
-                    BoardPiece::Red,
-                    BoardPiece::Empty,
-                    BoardPiece::Red,
-                ],
-                [
-                    BoardPiece::Red,
-                    BoardPiece::Empty,
-                    BoardPiece::Red,
-                    BoardPiece::Empty,
-                    BoardPiece::Red,
-                    BoardPiece::Empty,
-                    BoardPiece::Red,
-                    BoardPiece::Empty,
-                ],
-                [
-                    BoardPiece::Empty,
-                    BoardPiece::Red,
-                    BoardPiece::Empty,
-                    BoardPiece::Red,
-                    BoardPiece::Empty,
-                    BoardPiece::Red,
-                    BoardPiece::Empty,
-                    BoardPiece::Red,
-                ],
-            ],
-        };
-
-        let black_info_r = Rc::new(RefCell::new(PlayerInfo {
-            moves: Vec::new(),
-            can_jump: false,
-            piece_locs: HashSet::with_capacity(12),
-            player: Player::Black,
-        }));
-        let red_info_r = Rc::new(RefCell::new(PlayerInfo {
-            moves: Vec::new(),
-            can_jump: false,
-            piece_locs: HashSet::with_capacity(12),
-            player: Player::Red,
-        }));
-        let mut obj = Self {
-            board,
-            current_player: match file_input {
-                None => black_info_r.clone(),
-                Some(s) => match s.lines().nth(8) {
-                    Some(ns) => {
-                        match ns.parse::<u32>() {
-                            Err(_) => {
-                                println!("Invalid File input: Player is not a number, defaulting to Black");
-                                black_info_r.clone()
-                            }
-                            Ok(n) => match n {
-                                1 => black_info_r.clone(),
-                                2 => red_info_r.clone(),
-                                _ => {
-                                    println!("Invalid File input: Player # must be 1 or 0, defaulting to Black");
-                                    black_info_r.clone()
-                                }
-                            },
+                if i > 7 {
+                    match row
+                        .parse::<u32>()
+                        .context("Invalid File input: Player is not a number")?
+                    {
+                        1 => {}
+                        2 => players.swap(),
+                        _ => {
+                            bail!(
+                                "Invalid File input: Player # must be 1 or 0, defaulting to Black"
+                            );
                         }
+                    };
+                    return Ok((board, players));
+                }
+                let mut col_i = ((i % 2) == 0) as usize;
+                for c in row.chars().into_iter() {
+                    if c == ' ' {
+                        return Ok((board, players));
                     }
-                    None => {
-                        println!("Invalid File input: No player to choose, defaulting to Black");
-                        black_info_r.clone()
+                    if col_i > 7 {
+                        bail!(
+                            "File Format Error too many pieces on a row, col_i: {:?}  c:{:?}",
+                            col_i,
+                            c
+                        );
                     }
-                },
+                    board[7 - i][col_i] = c.try_into()?;
+                    col_i += 2;
+                }
+                Ok((board, players))
             },
-            black_info: black_info_r,
-            red_info: red_info_r,
-        };
+        )?;
 
+        Ok(Board::new(board, players))
+    }
+}
+
+impl Default for Board {
+    fn default() -> Self {
+        let board = [
+            [
+                BoardPiece::Black,
+                BoardPiece::Empty,
+                BoardPiece::Black,
+                BoardPiece::Empty,
+                BoardPiece::Black,
+                BoardPiece::Empty,
+                BoardPiece::Black,
+                BoardPiece::Empty,
+            ],
+            [
+                BoardPiece::Empty,
+                BoardPiece::Black,
+                BoardPiece::Empty,
+                BoardPiece::Black,
+                BoardPiece::Empty,
+                BoardPiece::Black,
+                BoardPiece::Empty,
+                BoardPiece::Black,
+            ],
+            [
+                BoardPiece::Black,
+                BoardPiece::Empty,
+                BoardPiece::Black,
+                BoardPiece::Empty,
+                BoardPiece::Black,
+                BoardPiece::Empty,
+                BoardPiece::Black,
+                BoardPiece::Empty,
+            ],
+            [
+                BoardPiece::Empty,
+                BoardPiece::Empty,
+                BoardPiece::Empty,
+                BoardPiece::Empty,
+                BoardPiece::Empty,
+                BoardPiece::Empty,
+                BoardPiece::Empty,
+                BoardPiece::Empty,
+            ],
+            [
+                BoardPiece::Empty,
+                BoardPiece::Empty,
+                BoardPiece::Empty,
+                BoardPiece::Empty,
+                BoardPiece::Empty,
+                BoardPiece::Empty,
+                BoardPiece::Empty,
+                BoardPiece::Empty,
+            ],
+            [
+                BoardPiece::Empty,
+                BoardPiece::Red,
+                BoardPiece::Empty,
+                BoardPiece::Red,
+                BoardPiece::Empty,
+                BoardPiece::Red,
+                BoardPiece::Empty,
+                BoardPiece::Red,
+            ],
+            [
+                BoardPiece::Red,
+                BoardPiece::Empty,
+                BoardPiece::Red,
+                BoardPiece::Empty,
+                BoardPiece::Red,
+                BoardPiece::Empty,
+                BoardPiece::Red,
+                BoardPiece::Empty,
+            ],
+            [
+                BoardPiece::Empty,
+                BoardPiece::Red,
+                BoardPiece::Empty,
+                BoardPiece::Red,
+                BoardPiece::Empty,
+                BoardPiece::Red,
+                BoardPiece::Empty,
+                BoardPiece::Red,
+            ],
+        ];
+        Self::new(board, Players::default())
+    }
+}
+
+impl Board {
+    fn new(board: [[BoardPiece; 8]; 8], players: Players) -> Self {
+        let mut obj = Self { board, players };
         for (row, row_arr) in obj.board.iter().enumerate() {
             for (col, el) in row_arr.iter().enumerate() {
                 if el.is_red() {
-                    obj.red_info.borrow_mut().piece_locs.insert((row, col));
+                    obj.players.get_red_mut().piece_locs.insert((row, col));
                 } else if el.is_black() {
-                    obj.black_info.borrow_mut().piece_locs.insert((row, col));
+                    obj.players.get_black_mut().piece_locs.insert((row, col));
                 }
             }
         }
+
         obj.calc_moves();
         obj
     }
 
     pub fn swap_current_player(&mut self) {
-        let player = self.current_player.borrow().player;
-        match player {
-            Player::Red => self.current_player = self.black_info.clone(),
-            Player::Black => self.current_player = self.red_info.clone(),
-        };
+        self.players.swap();
         self.calc_moves();
     }
 
     pub fn get_pieces(&self) -> (Vec<(BoardPiece, Cord)>, Vec<(BoardPiece, Cord)>) {
-        let cp = self.current_player.borrow();
-        let op = match cp.player {
-            Player::Red => self.black_info.borrow(),
-            Player::Black => self.red_info.borrow(),
-        };
+        let (cp, op) = self.players.get_current_players();
 
         let mine = cp
             .piece_locs
@@ -421,19 +473,16 @@ impl Board {
         return (mine, other);
     }
 
-    pub fn get_player_info(&self) -> Rc<RefCell<PlayerInfo>> {
-        self.current_player.clone()
+    pub fn get_player_info(&self) -> &PlayerInfo {
+        &self.players.get_current_player()
     }
 
     pub fn print_moves(&self) {
-        println!(
-            "Player: {:?}\n{}",
-            self.current_player.borrow().player,
-            self.current_player.borrow()
-        );
+        let player = self.players.get_current_player();
+        println!("Player: {:?}\n{}", player.player, player);
     }
 
-    fn calc_jumps(&self, row: usize, col: usize, p_info: &mut Vec<Moves>, player: Player) {
+    fn calc_jumps(&mut self, row: usize, col: usize) {
         self.dfs_jumps(
             row,
             col,
@@ -442,165 +491,167 @@ impl Board {
                 end_loc: (9, 9),
                 jump_path: HashSet::new(),
             },
-            p_info,
-            player,
         );
     }
 
-    fn dfs_jumps(
+    fn can_jump(
         &self,
-        row: usize,
-        col: usize,
-        path_par: Moves,
-        p_info: &mut Vec<Moves>,
+        enemy_row: i32,
+        enemy_col: i32,
+        new_row: i32,
+        new_col: i32,
+        path_par: &Moves,
         player: Player,
-    ) {
+    ) -> bool {
+        !self.is_off_screen(enemy_row, enemy_col)
+            && !self.is_off_screen(new_row, new_col)
+            && !path_par
+                .jump_path
+                .contains(&(enemy_row as usize, enemy_col as usize))
+            && player
+                .get_other()
+                .does_piece_match(self.board[enemy_row as usize][enemy_col as usize])
+            && (self.board[new_row as usize][new_col as usize] == BoardPiece::Empty
+                || path_par
+                    .jump_path
+                    .contains(&(new_row as usize, new_col as usize))
+                || (path_par.start_loc.0 as i32 == new_row
+                    && path_par.start_loc.1 as i32 == new_col))
+    }
+
+    fn dfs_jumps(&mut self, row: usize, col: usize, path_par: Moves) {
+        let player = self.players.get_current_player().player;
+        // let p_info = &mut self.players.get_current_player_mut().moves;
         let mut nothing_found = true;
 
-        let can_jump = |enemy_row: i32, enemy_col: i32, new_row: i32, new_col: i32| -> bool {
-            !self.is_off_screen(enemy_row, enemy_col)
-                && !self.is_off_screen(new_row, new_col)
-                && !path_par
-                    .jump_path
-                    .contains(&(enemy_row as usize, enemy_col as usize))
-                && player
-                    .get_other()
-                    .does_piece_match(self.board[enemy_row as usize][enemy_col as usize])
-                && (self.board[new_row as usize][new_col as usize] == BoardPiece::Empty
-                    || path_par
-                        .jump_path
-                        .contains(&(new_row as usize, new_col as usize))
-                    || (path_par.start_loc.0 as i32 == new_row
-                        && path_par.start_loc.1 as i32 == new_col))
-        };
-
         // check right ;
-        if can_jump(
+        if self.can_jump(
             row as i32 + player as i32,
             col as i32 + 1,
             row as i32 + 2 * (player as i32),
             col as i32 + 2,
+            &path_par,
+            player,
         ) {
             nothing_found = false;
             let mut path = path_par.clone();
             path.jump_path
                 .insert(((row as i32 + player as i32) as usize, col + 1));
-            self.dfs_jumps(
-                (row as i32 + 2 * (player as i32)) as usize,
-                col + 2,
-                path,
-                p_info,
-                player,
-            );
+            self.dfs_jumps((row as i32 + 2 * (player as i32)) as usize, col + 2, path);
         }
 
         // check left
-        if can_jump(
+        if self.can_jump(
             row as i32 + player as i32,
             col as i32 - 1,
             row as i32 + 2 * (player as i32),
             col as i32 - 2,
+            &path_par,
+            player,
         ) {
             nothing_found = false;
             let mut path = path_par.clone();
             path.jump_path
                 .insert(((row as i32 + player as i32) as usize, col - 1));
-            self.dfs_jumps(
-                (row as i32 + 2 * (player as i32)) as usize,
-                col - 2,
-                path,
-                p_info,
-                player,
-            );
+            self.dfs_jumps((row as i32 + 2 * (player as i32)) as usize, col - 2, path);
         }
         // /check back right
         if self.board[path_par.start_loc.0][path_par.start_loc.1].is_king()
-            && can_jump(
+            && self.can_jump(
                 row as i32 - player as i32,
                 col as i32 + 1,
                 row as i32 - 2 * (player as i32),
                 col as i32 + 2,
+                &path_par,
+                player,
             )
         {
             nothing_found = false;
             let mut path = path_par.clone();
             path.jump_path
                 .insert(((row as i32 - player as i32) as usize, col + 1));
-            self.dfs_jumps(
-                (row as i32 - 2 * (player as i32)) as usize,
-                col + 2,
-                path,
-                p_info,
-                player,
-            );
+            self.dfs_jumps((row as i32 - 2 * (player as i32)) as usize, col + 2, path);
         }
 
         // check back left
         if self.board[path_par.start_loc.0][path_par.start_loc.1].is_king()
-            && can_jump(
+            && self.can_jump(
                 row as i32 - player as i32,
                 col as i32 - 1,
                 row as i32 - 2 * (player as i32),
                 col as i32 - 2,
+                &path_par,
+                player,
             )
         {
             nothing_found = false;
             let mut path = path_par.clone();
             path.jump_path
                 .insert(((row as i32 - player as i32) as usize, col - 1));
-            self.dfs_jumps(
-                (row as i32 - 2 * (player as i32)) as usize,
-                col - 2,
-                path,
-                p_info,
-                player,
-            );
+            self.dfs_jumps((row as i32 - 2 * (player as i32)) as usize, col - 2, path);
         }
         if nothing_found {
+            let p_info = &mut self.players.get_current_player_mut().moves;
             p_info.push(path_par);
             p_info.last_mut().unwrap().end_loc = (row, col);
         }
     }
 
     fn calc_moves(&mut self) {
-        let mut p_info = &mut *self.current_player.borrow_mut();
-        p_info.moves.clear();
-        p_info.can_jump = false;
+        // let mut p_info = &mut *self.current_player.borrow_mut();
 
-        for &(row, col) in p_info.piece_locs.iter() {
-            if self.is_move_legal(row, col, Move::Jump, p_info) {
-                if !p_info.can_jump {
-                    p_info.moves.clear();
-                    p_info.can_jump = true;
+        let rows = self
+            .players
+            .get_current_player()
+            .piece_locs
+            .iter()
+            .cloned()
+            .collect::<Box<_>>();
+
+        {
+            let p_info = self.players.get_current_player_mut();
+            p_info.moves.clear();
+            p_info.can_jump = false;
+        }
+
+        for &(row, col) in rows.into_iter() {
+            if self.is_move_legal(row, col, Move::Jump) {
+                if !self.players.get_current_player().can_jump {
+                    self.players.get_current_player_mut().moves.clear();
+                    self.players.get_current_player_mut().can_jump = true;
                 }
-                self.calc_jumps(row, col, &mut p_info.moves, p_info.player);
+                self.calc_jumps(row, col);
             }
-            if p_info.can_jump {
+            if self.players.get_current_player().can_jump {
                 continue;
             }
 
-            if self.is_move_legal(row, col, Move::ForwardRight, p_info) {
+            if self.is_move_legal(row, col, Move::ForwardRight) {
+                let p_info = self.players.get_current_player_mut();
                 p_info.moves.push(Moves {
                     start_loc: (row, col),
                     end_loc: (((row as i32) + (p_info.player as i32)) as usize, col + 1),
                     jump_path: HashSet::new(),
                 });
             }
-            if self.is_move_legal(row, col, Move::ForwardLeft, p_info) {
+            if self.is_move_legal(row, col, Move::ForwardLeft) {
+                let p_info = self.players.get_current_player_mut();
                 p_info.moves.push(Moves {
                     start_loc: (row, col),
                     end_loc: (((row as i32) + (p_info.player as i32)) as usize, col - 1),
                     jump_path: HashSet::new(),
                 });
             }
-            if self.is_move_legal(row, col, Move::BackwardRight, p_info) {
+            if self.is_move_legal(row, col, Move::BackwardRight) {
+                let p_info = self.players.get_current_player_mut();
                 p_info.moves.push(Moves {
                     start_loc: (row, col),
                     end_loc: (((row as i32) - (p_info.player as i32)) as usize, col + 1),
                     jump_path: HashSet::new(),
                 });
             }
-            if self.is_move_legal(row, col, Move::BackwardLeft, p_info) {
+            if self.is_move_legal(row, col, Move::BackwardLeft) {
+                let p_info = self.players.get_current_player_mut();
                 p_info.moves.push(Moves {
                     start_loc: (row, col),
                     end_loc: (((row as i32) - (p_info.player as i32)) as usize, col - 1),
@@ -611,7 +662,7 @@ impl Board {
     }
 
     pub fn is_game_over(&self) -> Option<Player> {
-        let p_info = self.current_player.borrow();
+        let p_info = self.players.get_current_player();
         if p_info.moves.is_empty() {
             return Option::Some(p_info.player.get_other());
         }
@@ -619,12 +670,13 @@ impl Board {
     }
 
     pub fn do_move(&mut self, mv: usize) -> bool {
-        let mut player_info = self.current_player.borrow_mut();
-        let mut other_player = match player_info.player {
-            Player::Red => self.black_info.borrow_mut(),
-            Player::Black => self.red_info.borrow_mut(),
-        };
+        // let mut player_info = self.current_player.borrow_mut();
+        // let mut other_player = match player_info.player {
+        //     Player::Red => self.black_info.borrow_mut(),
+        //     Player::Black => self.red_info.borrow_mut(),
+        // };
 
+        let (player_info, other_player) = self.players.get_current_players_mut();
         let move_obj = match player_info.moves.get(mv) {
             Some(m) => m,
             None => return false,
@@ -648,16 +700,18 @@ impl Board {
         player_info.piece_locs.remove(&(start_row, start_col));
         player_info.piece_locs.insert((end_row, end_col));
 
-        let last_player = player_info.player;
+        // let last_player = player_info.player;
         // let next_player = other_player.player;
 
-        drop(player_info);
-        drop(other_player);
+        // drop(player_info);
+        // drop(other_player);
 
-        match last_player {
-            Player::Red => self.current_player = self.black_info.clone(),
-            Player::Black => self.current_player = self.red_info.clone(),
-        };
+        self.players.swap();
+
+        // match last_player {
+        //     Player::Red => self.current_player = self.black_info.clone(),
+        //     Player::Black => self.current_player = self.red_info.clone(),
+        // };
 
         self.calc_moves();
         true
@@ -667,7 +721,8 @@ impl Board {
         row >= self.board.len() as i32 || row < 0 || col >= self.board[0].len() as i32 || col < 0
     }
 
-    fn is_move_legal(&self, row: usize, col: usize, mv: Move, player_info: &PlayerInfo) -> bool {
+    fn is_move_legal(&self, row: usize, col: usize, mv: Move) -> bool {
+        let player_info = self.players.get_current_player();
         let piece = self.board[row][col];
         // check its the correct player's turn for the selected piece commented out because I am
         // only doing this off of the list of current players pieces
@@ -760,6 +815,6 @@ impl Board {
     }
 
     pub fn get_current_player(&self) -> Player {
-        self.current_player.borrow().player
+        self.players.get_current_player().player
     }
 }

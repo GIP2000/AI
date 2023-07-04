@@ -205,11 +205,9 @@ impl Heuristic {
         return score;
     }
     fn mobility(&self, state: &Board) -> i32 {
-        match state.get_player_info().borrow().get_can_jump() {
-            true => {
-                state.get_player_info().borrow().get_moves().len() as i32 * self.per_jump_move_val
-            }
-            false => state.get_player_info().borrow().get_moves().len() as i32 * self.per_move_val,
+        match state.get_player_info().get_can_jump() {
+            true => state.get_player_info().get_moves().len() as i32 * self.per_jump_move_val,
+            false => state.get_player_info().get_moves().len() as i32 * self.per_move_val,
         }
     }
 

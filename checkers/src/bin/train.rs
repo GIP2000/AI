@@ -13,7 +13,7 @@ fn game_loop(
     child_num: u32,
     time_to_beat: &Arc<RwLock<u32>>,
 ) -> GameResult {
-    let mut b = Board::new(&Option::None);
+    let mut b = Board::default();
     if child_num % 2 == 0 {
         b.swap_current_player();
     }
@@ -41,7 +41,7 @@ fn game_loop(
                 predict_move(b.clone(), TIME_LIMIT, Option::Some(black_h.clone()))
             }
         };
-        if b.get_player_info().borrow().get_moves()[m].is_jump() {
+        if b.get_player_info().get_moves()[m].is_jump() {
             time_since_last_jump = 0;
         } else {
             time_since_last_jump += 1;
